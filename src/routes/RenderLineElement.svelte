@@ -1,14 +1,6 @@
 <script lang="ts">
-    import {
-        type CodePoint,
-        Multiplier,
-        NoteBase,
-        OverDotCount, ShowCodePoint,
-        SuffixDotCount,
-        UnderDotCount,
-        UnderlineCount
-    } from "$lib/Jianpu";
     import {onDestroy, onMount} from "svelte";
+    import {LineElement, Tickable} from "$lib/Jianpu";
 
     const {
         left,
@@ -16,24 +8,24 @@
         right,
         SubmitCodePointLocation,
     }: {
-        left: CodePoint | null,
-        mid: CodePoint,
-        right: CodePoint | null,
-        SubmitCodePointLocation(me: CodePoint, element: Element): void
+        left: any | null,
+        mid: any,
+        right: any | null,
+        SubmitCodePointLocation(me: LineElement, element: Element): void
     } = $props();
 
-    const flex = mid instanceof NoteBase ? mid.Duration() : 1;
+    const flex = mid instanceof Tickable ? mid.Duration() : 1;
 
-    const underlineCountMid = UnderlineCount(mid);
-    const underlineCountLeft = UnderlineCount(left);
-    const underlineCountRight = UnderlineCount(right);
+    const underlineCountMid = undefined!;
+    const underlineCountLeft = undefined!;
+    const underlineCountRight = undefined!;
 
     const underlinesMid = Array(underlineCountMid);
     const underlinesLeft = Array(Math.min(underlineCountMid, underlineCountLeft));
     const underlinesRight = Array(Math.min(underlineCountMid, underlineCountRight));
-    const underDots = Array(UnderDotCount(mid));
-    const overDots = Array(OverDotCount(mid));
-    const suffixDots = Array(SuffixDotCount(mid));
+    const underDots = undefined!;
+    const overDots = undefined!;
+    const suffixDots = undefined!;
 
     let base: HTMLDivElement;
 
@@ -74,7 +66,7 @@
     <div></div>
 
     <div bind:this={base}>
-        {ShowCodePoint(mid)}
+        <!-- -->
     </div>
 
     <div class="suffix-dots">
@@ -112,7 +104,7 @@
 <style>
     .code-point {
         display: grid;
-        grid-template-rows: 1em auto 1em;
+        grid-template-rows: 1.3em auto 1.3em;
         grid-template-columns: auto auto 1fr;
 
         font-family: monospace;
@@ -131,24 +123,24 @@
 
     .underline {
         background-color: black;
-        height: 5px;
+        height: 0.1em;
         width: 100%;
-        margin-bottom: 5px;
+        margin-bottom: 0.1em;
     }
 
     .under-dot, .over-dot {
-        height: 10px;
-        width: 10px;
+        height: 0.2em;
+        width: 0.2em;
         border-radius: 100%;
         background-color: black;
     }
 
     .under-dot {
-        margin-bottom: 5px;
+        margin-bottom: 0.1em;
     }
 
     .over-dot {
-        margin-top: 5px;
+        margin-top: 0.1em;
     }
 
     .suffix-dots {
@@ -157,9 +149,9 @@
     }
 
     .suffix-dot {
-        margin-left: 10px;
-        width: 10px;
-        height: 10px;
+        margin-left: 0.2em;
+        width: 0.2em;
+        height: 0.2em;
         border-radius: 100%;
         background-color: black;
     }
