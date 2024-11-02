@@ -62,7 +62,7 @@ export class Parser<A>
             {
                 try
                 {
-                    const [a, newTail2] = p(s);
+                    const [a, newTail2] = p(tail2);
                     result.push(a);
                     tail2 = newTail2;
                 }
@@ -90,7 +90,7 @@ export class Parser<A>
             {
                 try
                 {
-                    const [a, newTail] = p(s);
+                    const [a, newTail] = p(tail);
                     result.push(a);
                     tail = newTail;
                 }
@@ -134,7 +134,7 @@ export function ParseString(s: string): Parser<string>
     return new Parser(function (s2)
     {
         if (s2.startsWith(s))
-            return [s, s2.substring(0, s.length)]
+            return [s, s2.substring(s.length)]
         throw "Parser Failed";
     });
 }
