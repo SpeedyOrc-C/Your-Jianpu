@@ -1,10 +1,12 @@
 import type {ArVariableTimeEvent} from "$lib/your-jianpu/abstract/ArVariableTimeEvent";
 import {GrObjectNode, GrSvg, type XY} from "$lib/your-jianpu/graphical/GrObject";
 import {SvgId} from "$lib/your-jianpu/graphical/svg-metadata";
-import {Clap, Multiplier, Note, PitchBase, Rest} from "$lib/your-jianpu/abstract";
+import {Accidental, Clap, Multiplier, Note, PitchBase, Rest} from "$lib/your-jianpu/abstract";
 
 const GlyphHeight = 100;
 const GlyphWidth = 75;
+const AccidentalHeight = 70;
+const AccidentalWidth = 35;
 const SmallDotDiameter = 20;
 
 export class GrVariableTimeEvent extends GrObjectNode<any>
@@ -33,11 +35,17 @@ export class GrVariableTimeEvent extends GrObjectNode<any>
             const [firstPitch, ...pitches] = origin.Sounds;
 
             // TODO: Remove the BANG after all glyphs are implemented
-            this.VerticalStack.push(GrVariableTimeEvent.PitchBaseToGlyph(firstPitch.Base, [-37.5, -100])!);
+            this.VerticalStack.push(GrVariableTimeEvent.PitchBaseToSvg(firstPitch.Base, [-GlyphWidth / 2, -GlyphHeight])!);
 
             underDotsCount = firstPitch.Transpose < 0 ? -firstPitch.Transpose : 0;
 
             let stackTopY = -GlyphHeight;
+
+            if (firstPitch.Accidental != null)
+                this.VerticalStack.push(
+                    GrVariableTimeEvent.AccidentalToSvg(
+                        // TODO: Remove the BANG after all glyphs are implemented
+                        firstPitch.Accidental, [-GlyphWidth / 2 - AccidentalWidth, stackTopY])!);
 
             if (firstPitch.Transpose > 0)
             {
@@ -71,9 +79,16 @@ export class GrVariableTimeEvent extends GrObjectNode<any>
                     }
                 }
 
-                this.VerticalStack.push(GrVariableTimeEvent.PitchBaseToGlyph(pitch.Base, [-37.5, stackTopY - 100])!);
+                // TODO: Remove the BANG after all glyphs are implemented
+                this.VerticalStack.push(GrVariableTimeEvent.PitchBaseToSvg(pitch.Base, [-37.5, stackTopY - 100])!);
 
                 stackTopY -= GlyphHeight;
+
+                if (pitch.Accidental != null)
+                    this.VerticalStack.push(
+                        GrVariableTimeEvent.AccidentalToSvg(
+                            // TODO: Remove the BANG after all glyphs are implemented
+                            pitch.Accidental, [-GlyphWidth / 2 - AccidentalWidth, stackTopY])!);
 
                 if (pitch.Transpose > 0)
                 {
@@ -119,7 +134,7 @@ export class GrVariableTimeEvent extends GrObjectNode<any>
         this.AssignThisParentToChildren();
     }
 
-    static PitchBaseToGlyph(b: PitchBase, position: XY)
+    static PitchBaseToSvg(b: PitchBase, position: XY)
     {
         switch (b)
         {
@@ -137,6 +152,19 @@ export class GrVariableTimeEvent extends GrObjectNode<any>
                 break;
             case PitchBase.K7:
                 break;
+        }
+    }
+
+    static AccidentalToSvg(a: Accidental, position: XY)
+    {
+        switch (a)
+        {
+            case Accidental.Flat:
+                return new GrAccidentalFlat(position);
+            case Accidental.Natural:
+                return new GrAccidentalNatural(position);
+            case Accidental.Sharp:
+                return new GrAccidentalSharp(position);
         }
     }
 
@@ -172,31 +200,48 @@ export class GrVariableTimeEvent extends GrObjectNode<any>
     }
 }
 
-export class GrGlyph0 extends GrSvg
+export abstract class GrAccidental extends GrSvg
+{
+    get Width(): number { return AccidentalWidth; }
+
+    get Height(): number { return AccidentalHeight; }
+}
+
+export class GrAccidentalFlat extends GrAccidental
+{
+    get Id(): SvgId { return SvgId.Accidental_Flat; }
+}
+
+export class GrAccidentalNatural extends GrAccidental
+{
+    get Id(): SvgId { return SvgId.Accidental_Natural; }
+}
+
+export class GrAccidentalSharp extends GrAccidental
+{
+    get Id(): SvgId { return SvgId.Accidental_Sharp; }
+}
+
+export abstract class GrGlyph extends GrSvg
+{
+    get Width(): number { return GlyphWidth; }
+
+    get Height(): number { return GlyphHeight; }
+}
+
+export class GrGlyph0 extends GrGlyph
 {
     get Id(): SvgId { return SvgId.Glyph_0; }
-
-    get Width(): number { return GlyphWidth; }
-
-    get Height(): number { return GlyphHeight; }
 }
 
-export class GrGlyph1 extends GrSvg
+export class GrGlyph1 extends GrGlyph
 {
     get Id(): SvgId { return SvgId.Glyph_1; }
-
-    get Width(): number { return GlyphWidth; }
-
-    get Height(): number { return GlyphHeight; }
 }
 
-export class GrGlyphX extends GrSvg
+export class GrGlyphX extends GrGlyph
 {
     get Id(): SvgId { return SvgId.Glyph_X; }
-
-    get Width(): number { return GlyphWidth; }
-
-    get Height(): number { return GlyphHeight; }
 }
 
 export class GrUnderline extends GrSvg

@@ -1,15 +1,15 @@
 import {test} from "vitest";
 import {GrVariableTimeEvent} from "$lib/your-jianpu/graphical/small/GrVariableTimeEvent";
-import {Clap, Note, Pitch, Rest} from "$lib/your-jianpu/abstract";
+import {Accidental, Note, Pitch} from "$lib/your-jianpu/abstract";
 import {type GrSvg, ShowGrSvg} from "$lib/your-jianpu/graphical/GrObject";
 import {SvgFromId} from "$lib/your-jianpu/graphical/svg-metadata";
 
 test("Render 1", () =>
 {
     const e = new GrVariableTimeEvent(new Note([
-        new Pitch(1, -3),
-        new Pitch(1, -2),
-        new Pitch(1, 2),
+        new Pitch(1, -3, Accidental.Sharp),
+        new Pitch(1, -2, Accidental.Flat),
+        new Pitch(1, 2, Accidental.Natural),
         new Pitch(1, 3),
     ], 1 / 16, 5));
     const svgs: GrSvg[] = [];
