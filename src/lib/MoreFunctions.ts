@@ -15,3 +15,49 @@ export function ZipPrevNext<T>(xs: T[]): [T | null, T, T | null][]
 
     return [first, ...inner, last];
 }
+
+export class SpringInputSSF
+{
+    constructor(public PreStretchedLength: number, public HooksConstant: number) {}
+}
+
+export function SpaceForceFunction(desiredExtent: number, input: SpringInputSSF[]): number
+{
+    if (input.length == 0)
+        throw "Empty input.";
+
+    let minimumExtent = input
+        .map(x => x.PreStretchedLength)
+        .reduce((x, y) => x + y);
+
+    if (desiredExtent <= minimumExtent)
+        return 0;
+
+    const sortedInput = input
+        .sort((a, b) =>
+            a.HooksConstant * a.PreStretchedLength - b.HooksConstant * b.PreStretchedLength);
+
+    let currentHooksConstant = sortedInput[0].HooksConstant;
+
+    for (let i = 0; i < sortedInput.length; i++)
+    {
+        const {PreStretchedLength, HooksConstant} = sortedInput[i];
+
+        minimumExtent -= PreStretchedLength;
+
+        const force = (desiredExtent - minimumExtent) / currentHooksConstant;
+
+        if (i == sortedInput.length - 1)
+            return force;
+
+        const nextInput = sortedInput[i+1];
+        const nextForce = nextInput.PreStretchedLength * nextInput.HooksConstant;
+
+        if (force <= nextForce)
+            return force;
+
+        currentHooksConstant = 1 / (1 / currentHooksConstant + 1 / nextInput.HooksConstant)
+    }
+
+    throw "This is not possible.";
+}
