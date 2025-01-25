@@ -1,0 +1,16 @@
+{
+  "name": "text-metric-calculator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "run": "./index.js"
+  },
+  "keywords": [],
+  "type": "module",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "puppeteer": "^23.10.4"
+  }
+}

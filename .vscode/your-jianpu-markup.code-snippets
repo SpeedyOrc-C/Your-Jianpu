@@ -1,0 +1,22 @@
+{
+	"延长符号": {
+		"prefix": ["@fermata", "fermata", "yanchang", "延长"],
+		"body": "@fermata ",
+	},
+	"渐强":{
+		"prefix": ["\\cresc", "cresc", "jianqiang", "渐强"],
+		"body": "\\cresc{ $0 }",
+	},
+	"谱号": {
+		"prefix": ["^signature", "signature", "puhao", "谱号"],
+		"body": "^signature<$1,$2> $0",
+	},
+	"三连音": {
+		"prefix": ["t3", "ly3"],
+		"body": "\\tuplet<3> { $0 }",
+	},
+	"五连音": {
+		"prefix": ["t5", "ly5"],
+		"body": "\\tuplet<5> { $0 }"
+	},
+}
