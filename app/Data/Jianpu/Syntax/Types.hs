@@ -4,6 +4,7 @@ import Data.Jianpu.Types
 
 newtype Music = Music [Voice] deriving (Show)
 newtype Voice = Voice [Entity] deriving (Show)
+
 data Entity
     = Event Event
     | BeginEndRepeat

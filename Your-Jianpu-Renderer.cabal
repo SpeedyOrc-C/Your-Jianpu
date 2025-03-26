@@ -56,7 +56,7 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
-executable Your-Jianpu-Renderer
+executable yjpc
     -- Import common warning flags.
     import:           warnings
 

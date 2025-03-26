@@ -6,27 +6,24 @@ import Data.Ratio
 
 newtype Music = Music [Voice] deriving (Show)
 
+type Duration = Ratio Int
+
 data Voice = Voice
     { voiceItems :: [VoiceItem]
     , tagSpans :: IM.IntervalMap Int TagSpan
     }
     deriving (Show)
 
-data VoiceItem = VoiceItem {
-    entity :: Entity,
-    timing :: Timing
-} deriving Show
-
-data Timing = Timing
-    { startBeat :: Ratio Int
-    , duration :: Ratio Int
+data VoiceItem = VoiceItem
+    { entity :: Entity
+    , duration :: Duration
     }
-    deriving (Show)
+    deriving (Show, Eq)
 
 data Entity
     = Event Event
     | TagSingleton TagSingleton
-    deriving (Show)
+    deriving (Show, Eq)
 
 data TagSpan
     = Slur
@@ -37,7 +34,7 @@ data TagSpan
     | Fermata
     | Lyrics [String]
     | TextBelow [String]
-    deriving (Show)
+    deriving (Show, Eq)
 
 {-
 Closed    ┌─────┐
@@ -48,7 +45,7 @@ data Boundary
     = Closed
     | OpenLeft
     | OpenRight
-    deriving Show
+    deriving (Show, Eq)
 
 data TagSingleton
     = BeginEndRepeat
@@ -58,7 +55,11 @@ data TagSingleton
     | EndSign
     | BarLine
     | TimeSignature Int Int
-    deriving (Show)
+    deriving (Show, Eq)
+
+x = VoiceItem (Event (TimedEvent Whole 0 Clap)) 1
+x' = VoiceItem (Event (TimedEvent Minim 0 Clap)) (1 % 2)
+x'' = VoiceItem (Event (TimedEvent Crotchet 0 Clap)) (1 % 4)
 
 entityLikeBarLine :: Entity -> Bool
 entityLikeBarLine (TagSingleton tag) = tagLikeBarLine tag

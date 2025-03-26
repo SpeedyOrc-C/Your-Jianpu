@@ -10,7 +10,7 @@ data Event
         , dot :: Int
         , sound :: Sound
         }
-    deriving (Show)
+    deriving (Show, Eq)
 
 data TimeMultiplier = Whole | Minim | Crotchet | Quaver | Semiquaver
     deriving (Show, Eq)
@@ -22,7 +22,7 @@ data Sound
         }
     | Rest
     | Clap
-    deriving (Show)
+    deriving (Show, Eq)
 
 data Pitch = Pitch
     { whiteKey :: WhiteKey
@@ -38,4 +38,4 @@ data Accidental = Natural | Sharp | Flat | DoubleSharp | DoubleFlat
     deriving (Show, Eq)
 
 newtype Appoggiatura = Appoggiatura [Sound]
-    deriving (Show)
+    deriving (Show, Eq)
