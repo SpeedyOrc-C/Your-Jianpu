@@ -10,14 +10,14 @@ import Data.Jianpu.Syntax.Parser
 import Data.Jianpu.Syntax.Types qualified as S
 import Data.Jianpu.Transform.Lyrics
 
-test s =
-    let
-        Right (S.Voice syntaticEntities) = run pVoice s
-        Right (tagSpans, entities) = extractTagSpans syntaticEntities
-        durations = calculateDurations tagSpans entities
-        voice = Voice (zipWith VoiceItem entities durations) tagSpans
-     in
-        expandLyrics voice
+-- test s =
+--     let
+--         Right (S.Voice syntaticEntities) = run pVoice s
+--         Right (tagSpans, entities) = extractTagSpans syntaticEntities
+--         durations = calculateDurations tagSpans entities
+--         voice = Voice (zipWith VoiceItem entities durations) tagSpans
+--      in
+--         expandLyrics voice
 
 main :: IO ()
 main = do

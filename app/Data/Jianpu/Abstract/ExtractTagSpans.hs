@@ -7,6 +7,7 @@ import Data.Jianpu.Abstract.Types
 import Data.Jianpu.Syntax.Types qualified as Syntax
 import Data.Maybe
 import Data.List.Utils
+import Data.Jianpu.Types (Event)
 
 data TagError
     = ErrorArgsTimeSignature
@@ -20,12 +21,12 @@ data TagError
     | TagMismatch
     deriving (Show)
 
-extractArg0 :: TagSpan -> TagError -> [Syntax.Argument] -> Either TagError TagSpan
+extractArg0 :: Span -> TagError -> [Syntax.Argument] -> Either TagError Span
 extractArg0 constructor error' = \case
     [] -> Right constructor
     _ -> Left error'
 
-extractTagSpan :: String -> [Syntax.Argument] -> Either TagError TagSpan
+extractTagSpan :: String -> [Syntax.Argument] -> Either TagError Span
 extractTagSpan "fermata" = extractArg0 Fermata ErrorArgsFermata
 extractTagSpan "beam" = extractArg0 Beam ErrorArgsBeam
 extractTagSpan "tie" = extractArg0 Tie ErrorArgsTie
@@ -46,7 +47,7 @@ type TagStartEntry =
 
 data ExtractorState = ES
     { currentIndex :: Int
-    , spans :: IntervalMap Int TagSpan
+    , spans :: IntervalMap Int Span
     , tagStartStack :: [TagStartEntry]
     }
     deriving (Show)
@@ -61,25 +62,25 @@ tagMatched (name, _) (Just name', Nothing) = name == name'
 tagMatched (name, Just idx) (Just name', Just idx') = name == name' && idx == idx'
 tagMatched _ _ = False
 
-extractOne :: Syntax.Entity -> State ExtractorState (Either TagError (Maybe Entity))
+extractOne :: Syntax.Entity -> State ExtractorState (Either TagError (Maybe (Either Tag Event)))
 extractOne Syntax.BeginEndRepeat =
-    oneStepForward >> pure (Right . Just $ TagSingleton BeginEndRepeat)
+    oneStepForward >> pure (Right . Just $ Left BeginEndRepeat)
 extractOne Syntax.BeginRepeat =
-    oneStepForward >> pure (Right . Just $ TagSingleton BeginRepeat)
+    oneStepForward >> pure (Right . Just $ Left BeginRepeat)
 extractOne Syntax.EndRepeat =
-    oneStepForward >> pure (Right . Just $ TagSingleton EndRepeat)
+    oneStepForward >> pure (Right . Just $ Left EndRepeat)
 extractOne Syntax.DoubleBarLine =
-    oneStepForward >> pure (Right . Just $ TagSingleton DoubleBarLine)
+    oneStepForward >> pure (Right . Just $ Left DoubleBarLine)
 extractOne Syntax.EndSign =
-    oneStepForward >> pure (Right . Just $ TagSingleton EndSign)
+    oneStepForward >> pure (Right . Just $ Left EndSign)
 extractOne Syntax.BarLine =
-    oneStepForward >> pure (Right . Just $ TagSingleton BarLine)
+    oneStepForward >> pure (Right . Just $ Left BarLine)
 extractOne (Syntax.Event event) =
-    oneStepForward >> pure (Right . Just $ Event event)
+    oneStepForward >> pure (Right . Just $ Right event)
 extractOne (Syntax.Tag0 "signature" args) =
     case args of
         [Syntax.Int a, Syntax.Int b] ->
-            oneStepForward >> pure (Right . Just $ TagSingleton $ TimeSignature a b)
+            oneStepForward >> pure (Right . Just $ Left $ TimeSignature a b)
         _ -> return $ Left ErrorArgsTimeSignature
 extractOne (Syntax.Tag0 name _) = pure . Left $ UnknownTag name
 extractOne (Syntax.Tag1 name args) =
@@ -125,7 +126,7 @@ extractOne (Syntax.TagEnd name idx) = state $ \es@ES{currentIndex, spans, tagSta
                         }
                     )
 
-extractTagSpans :: [Syntax.Entity] -> Either [TagError] (IntervalMap Int TagSpan, [Entity])
+extractTagSpans :: [Syntax.Entity] -> Either [TagError] (IntervalMap Int Span, [Either Tag Event])
 extractTagSpans entities' =
     case errors of
         [] -> Right (tagSpans, entities)

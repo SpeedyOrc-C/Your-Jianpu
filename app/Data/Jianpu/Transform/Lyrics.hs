@@ -105,12 +105,12 @@ expands to
 @
 -}
 expandLyrics :: Voice -> Either LyricsExpansionError Voice
-expandLyrics Voice{voiceItems, tagSpans} =
+expandLyrics Voice{entities, tagSpans} =
     case eitherNewSpans of
         Left err ->
             Left err
         Right (IM.fromAscList -> tagSpansToBeAdded) ->
-            Right Voice{voiceItems, tagSpans = tagSpans' <> tagSpansToBeAdded}
+            Right Voice{entities, tagSpans = tagSpans' <> tagSpansToBeAdded}
   where
     (tagSpans', lyricsTagSpans) =
         flip IM.mapEither tagSpans $ \case
@@ -119,7 +119,7 @@ expandLyrics Voice{voiceItems, tagSpans} =
 
     syllablesTagSpansMaybe = map words' <$> lyricsTagSpans
 
-    indexedItems = zip [0 ..] voiceItems
+    indexedItems = zip [0 ..] entities
 
     eitherNewSpans = sequence $ do
         (lyricsInterval, syllablesList) <- IM.toAscList syllablesTagSpansMaybe
@@ -132,11 +132,11 @@ expandLyrics Voice{voiceItems, tagSpans} =
 
         let syllableFriendlyItemsIndices =
                 [ index
-                | (index, VoiceItem{entity}) <- take (right - left + 1) (drop left indexedItems)
+                | (index, entity) <- take (right - left + 1) (drop left indexedItems)
                 , case entity of
-                    Event Repeater4 -> True
-                    Event (TimedEvent{sound = Clap}) -> True
-                    Event (TimedEvent{sound = Note{}}) -> True
+                    Event{event = Repeater4} -> True
+                    Event{event = (TimedEvent{sound = Clap})} -> True
+                    Event{event = (TimedEvent{sound = Note{}})} -> True
                     _ -> False
                 ]
 

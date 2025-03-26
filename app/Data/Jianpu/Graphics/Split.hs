@@ -31,15 +31,15 @@ have the same number of elements.
 -}
 sliceMusic ::
     Music ->
-    Either SplitError [(Duration, NonEmpty (Either DummyItem VoiceItem))]
+    Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
 sliceMusic (Music voices) =
     case NE.nonEmpty voices of
         Nothing -> Left ErrorNoVoice
-        Just voices' -> sliceMusic' (map Right . voiceItems <$> voices')
+        Just voices' -> sliceMusic' (map Right . entities <$> voices')
 
 sliceMusic' ::
-    NonEmpty [Either StagedItem VoiceItem] ->
-    Either SplitError [(Duration, NonEmpty (Either DummyItem VoiceItem))]
+    NonEmpty [Either StagedItem Entity] ->
+    Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
 sliceMusic' (NE.map uncons -> voicesHeadsTails) =
     case sequence voicesHeadsTails of
         -- All voices have got something
@@ -54,9 +54,9 @@ sliceMusic' (NE.map uncons -> voicesHeadsTails) =
 
 sliceMusic'allHaveDuration ::
     NonEmpty Duration ->
-    NonEmpty (Either DummyItem VoiceItem) ->
-    NonEmpty [Either StagedItem VoiceItem] ->
-    Either SplitError [(Duration, NonEmpty (Either DummyItem VoiceItem))]
+    NonEmpty (Either DummyItem Entity) ->
+    NonEmpty [Either StagedItem Entity] ->
+    Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
 sliceMusic'allHaveDuration (NE.nub -> durations) heads tails =
     (slice :) <$> sliceMusic' voices'
   where
@@ -67,32 +67,32 @@ sliceMusic'allHaveDuration (NE.nub -> durations) heads tails =
 
 sliceMusic'someNoDuration ::
     NonEmpty Duration ->
-    NonEmpty (Either DummyItem VoiceItem) ->
-    NonEmpty [Either StagedItem VoiceItem] ->
-    Either SplitError [(Duration, NonEmpty (Either DummyItem VoiceItem))]
-sliceMusic'someNoDuration (NE.nub -> durations) heads tails = undefined
+    NonEmpty (Either DummyItem Entity) ->
+    NonEmpty [Either StagedItem Entity] ->
+    Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
+sliceMusic'someNoDuration (NE.nub -> durations) heads tails =
+    undefined
 
 debug voices = fmap (fmap (fmap getDuration)) <$> sliceMusic (Music ((`Voice` IM.empty) <$> voices))
 
-getDuration :: Either StagedItem VoiceItem -> Duration
+getDuration :: Either StagedItem Entity -> Duration
 getDuration = \case
     Left duration -> duration
-    Right VoiceItem{duration} -> duration
+    Right Event{duration} -> duration
+    Right Tag{} -> 0
 
 processSlice ::
     Duration ->
-    Either StagedItem VoiceItem ->
-    ( Either DummyItem VoiceItem
-    , Maybe (Either StagedItem VoiceItem)
-    )
+    Either StagedItem Entity ->
+    (Either DummyItem Entity, Maybe (Either StagedItem Entity))
 processSlice minDuration (Left stagedItem) =
     ( Left minDuration
     , if stagedItem > minDuration
         then Just $ Left (stagedItem - minDuration)
         else Nothing
     )
-processSlice minDuration (Right voiceItem@(VoiceItem{duration})) =
-    ( Right voiceItem
+processSlice minDuration entity@(getDuration -> duration) =
+    ( entity
     , if duration > minDuration
         then Just $ Left (duration - minDuration)
         else Nothing

@@ -7,17 +7,14 @@ import Data.IntervalMap qualified as IM
 import Data.Jianpu.Abstract.Types
 import Data.Jianpu.Types
 import Data.Ratio
-import Data.Maybe
 
 type TupletMultiplier = Ratio Int
 type TimeSignature = (Int, Int)
 
-calculateDurations :: IntervalMap Int TagSpan -> [Entity] -> [Duration]
+calculateDurations :: IntervalMap Int Span -> [Either Tag Event] -> [Entity]
 calculateDurations spans entities =
-    map (fromMaybe 0) durations
+    evalState calculation Nothing
   where
-    durations = evalState calculation Nothing
-
     calculation = traverse (calculateDuration tuplets) (zip [0 ..] entities)
 
     tuplets = flip IM.mapMaybe spans $ \case
@@ -28,20 +25,20 @@ calculateDurations spans entities =
 
 calculateDuration ::
     IntervalMap Int TupletMultiplier ->
-    (Int, Entity) ->
-    State (Maybe TimeSignature) (Maybe Duration)
-calculateDuration _ (_, TagSingleton (TimeSignature a b)) =
-    state . const $ (Nothing, Just (a, b))
-calculateDuration _ (_, TagSingleton _) =
-    return Nothing
-calculateDuration _ (_, Event (MultiBarRest bars)) =
+    (Int, Either Tag Event) ->
+    State (Maybe TimeSignature) Entity
+calculateDuration _ (_, Left tagSingleton@(TimeSignature a b)) =
+    state . const $ (Tag tagSingleton, Just (a, b))
+calculateDuration _ (_, Left tagSingleton) =
+    return . Tag $ tagSingleton
+calculateDuration _ (_, Right event@(MultiBarRest bars)) =
     get >>= \case
         Nothing -> error "No time signature detected"
-        Just (a, b) -> return . Just $ (bars * a * 4) % b
-calculateDuration _ (_, Event Repeater4) =
-    return $ Just 1
-calculateDuration tuplets (index, Event (TimedEvent{timeMultiplier, dot})) =
-    return . Just $ tuplet * baseDuration * dotExtension
+        Just (a, b) -> return $ Event event ((bars * a * 4) % b)
+calculateDuration _ (_, Right event@Repeater4) =
+    return $ Event event 1
+calculateDuration tuplets (index, Right event@(TimedEvent{timeMultiplier, dot})) =
+    return $ Event event (tuplet * baseDuration * dotExtension)
   where
     tuplet =
         tuplets `IM.containing` index
