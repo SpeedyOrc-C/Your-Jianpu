@@ -37,7 +37,7 @@ calculateDuration _ (_, Right event@(MultiBarRest bars)) =
         Just (a, b) -> return $ Event event ((bars * a * 4) % b)
 calculateDuration _ (_, Right event@Repeater4) =
     return $ Event event 1
-calculateDuration tuplets (index, Right event@(TimedEvent{timeMultiplier, dot})) =
+calculateDuration tuplets (index, Right event@(Action{timeMultiplier, dot})) =
     return $ Event event (tuplet * baseDuration * dotExtension)
   where
     tuplet =

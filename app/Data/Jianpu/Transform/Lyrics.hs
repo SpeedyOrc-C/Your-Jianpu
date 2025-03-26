@@ -135,8 +135,8 @@ expandLyrics Voice{entities, tagSpans} =
                 | (index, entity) <- take (right - left + 1) (drop left indexedItems)
                 , case entity of
                     Event{event = Repeater4} -> True
-                    Event{event = (TimedEvent{sound = Clap})} -> True
-                    Event{event = (TimedEvent{sound = Note{}})} -> True
+                    Event{event = (Action{sound = Clap})} -> True
+                    Event{event = (Action{sound = Note{}})} -> True
                     _ -> False
                 ]
 

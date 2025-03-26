@@ -31,29 +31,30 @@ data Span
     deriving (Show, Eq)
 
 {-
-Closed    ┌─────┐
-OpenLeft  ┌──────
-OpenRight ──────┐
+Closed       ┌─────┐
+LeftOpened   ┌──────
+RightOpened  ──────┐
 -}
 data Boundary
     = Closed
-    | OpenLeft
-    | OpenRight
+    | LeftOpened
+    | RightOpened
     deriving (Show, Eq)
 
 data Tag
-    = BeginEndRepeat
+    = TimeSignature Int Int
+    | BarLine
+    | BeginEndRepeat
     | BeginRepeat
     | EndRepeat
     | DoubleBarLine
     | EndSign
-    | BarLine
-    | TimeSignature Int Int
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
 
--- x = VoiceItem (Event (TimedEvent Whole 0 Clap)) 1
--- x' = VoiceItem (Event (TimedEvent Minim 0 Clap)) (1 % 2)
--- x'' = VoiceItem (Event (TimedEvent Crotchet 0 Clap)) (1 % 4)
+x = Event (Action Whole 0 Clap) 1
+x' = Event (Action Minim 0 Clap) (1 % 2)
+x'' = Event (Action Crotchet 0 Clap) (1 % 4)
+b = Tag BarLine
 
 entityLikeBarLine :: Entity -> Bool
 entityLikeBarLine (Tag tag) = tagLikeBarLine tag

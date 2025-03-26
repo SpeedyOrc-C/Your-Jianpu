@@ -183,7 +183,7 @@ scopedState inner = do
     put oldState
 
 drawMusicalEvent :: Event -> PenWielding ()
-drawMusicalEvent (TimedEvent multiplier rightDotsCount sound) = do
+drawMusicalEvent (Action multiplier rightDotsCount sound) = do
     put $ XY 57.5 (-50)
     replicateM_ rightDotsCount $ do
         draw SmallDot RightMoveRight

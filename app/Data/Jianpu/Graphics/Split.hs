@@ -6,9 +6,11 @@ module Data.Jianpu.Graphics.Split where
 
 import Data.IntervalMap qualified as IM
 import Data.Jianpu.Abstract.Types
+import Data.Jianpu.Types
 import Data.List (uncons)
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.List.NonEmpty qualified as NE
+import Data.List.Utils
 import Data.Maybe (maybeToList)
 import Debug.Trace (traceShowM)
 
@@ -26,8 +28,8 @@ type StagedItem = Duration
 {-
 Slice a music by their timings. This works similar to matrix transposing,
 but each voice may have different number of elements,
-so we need some clever ways to insert dummy elements (Nothing) so that all voices
-have the same number of elements.
+so we need some clever ways to insert dummy elements (Nothing) so that
+all voices have the same number of elements.
 -}
 sliceMusic ::
     Music ->
@@ -36,64 +38,85 @@ sliceMusic (Music voices) =
     case NE.nonEmpty voices of
         Nothing -> Left ErrorNoVoice
         Just voices' -> sliceMusic' (map Right . entities <$> voices')
-
-sliceMusic' ::
-    NonEmpty [Either StagedItem Entity] ->
-    Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
-sliceMusic' (NE.map uncons -> voicesHeadsTails) =
-    case sequence voicesHeadsTails of
-        -- All voices have got something
-        Just headsTails -> do
-            let (heads, tails) = NE.unzip headsTails
-            let durations = NE.map getDuration heads
-            if all (> 0) durations
-                then sliceMusic'allHaveDuration durations heads tails
-                else sliceMusic'someNoDuration durations heads tails
-        -- Some voices are empty
-        Nothing -> Right []
-
-sliceMusic'allHaveDuration ::
-    NonEmpty Duration ->
-    NonEmpty (Either DummyItem Entity) ->
-    NonEmpty [Either StagedItem Entity] ->
-    Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
-sliceMusic'allHaveDuration (NE.nub -> durations) heads tails =
-    (slice :) <$> sliceMusic' voices'
   where
-    minDuration = minimum durations
-    (sliceResult, sliceTail) = NE.unzip $ processSlice minDuration <$> heads
-    slice = (minDuration, sliceResult)
-    voices' = NE.zipWith (++) (maybeToList <$> sliceTail) tails
+    sliceMusic' ::
+        NonEmpty [Either StagedItem Entity] ->
+        Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
+    sliceMusic' (NE.map uncons -> voicesHeadsTails) =
+        case sequence voicesHeadsTails of
+            -- All voices have got something
+            Just headsTails -> do
+                let (heads, tails) = NE.unzip headsTails
+                case partitionEithersNE (pullTagOut <$> heads) of
+                    Right eventsAndStagedItems ->
+                        sliceMusic'allHaveDuration eventsAndStagedItems tails
+                    Left tags ->
+                        sliceMusic'someTags tags heads tails
+            -- Some voices are empty
+            Nothing -> Right []
+      where
+        pullTagOut ::
+            Either StagedItem Entity ->
+            Either Tag (Either StagedItem (Event, Duration))
+        pullTagOut (Left s) = Right (Left s)
+        pullTagOut (Right (Event e d)) = Right (Right (e, d))
+        pullTagOut (Right (Tag t)) = Left t
 
-sliceMusic'someNoDuration ::
-    NonEmpty Duration ->
-    NonEmpty (Either DummyItem Entity) ->
-    NonEmpty [Either StagedItem Entity] ->
-    Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
-sliceMusic'someNoDuration (NE.nub -> durations) heads tails =
-    undefined
+        sliceMusic'allHaveDuration ::
+            NonEmpty (Either DummyItem (Event, Duration)) ->
+            NonEmpty [Either StagedItem Entity] ->
+            Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
+        sliceMusic'allHaveDuration heads tails =
+            (slice :) <$> sliceMusic' voices'
+          where
+            minDuration = minimum $ getDuration <$> heads
+            (sliceResult, sliceTail) = NE.unzip $ getSlice <$> heads
+            slice = (minDuration, sliceResult)
+            voices' = NE.zipWith (++) (maybeToList <$> sliceTail) tails
 
-debug voices = fmap (fmap (fmap getDuration)) <$> sliceMusic (Music ((`Voice` IM.empty) <$> voices))
+            getSlice ::
+                Either StagedItem (Event, Duration) ->
+                (Either DummyItem Entity, Maybe (Either StagedItem Entity))
+            getSlice (Left stagedItem) =
+                ( Left minDuration
+                , if stagedItem > minDuration
+                    then Just $ Left (stagedItem - minDuration)
+                    else Nothing
+                )
+            getSlice (Right (event, duration)) =
+                ( Right (Event event minDuration)
+                , if duration > minDuration
+                    then Just $ Left (duration - minDuration)
+                    else Nothing
+                )
 
-getDuration :: Either StagedItem Entity -> Duration
-getDuration = \case
-    Left duration -> duration
-    Right Event{duration} -> duration
-    Right Tag{} -> 0
+        sliceMusic'someTags ::
+            NonEmpty Tag ->
+            NonEmpty (Either DummyItem Entity) ->
+            NonEmpty [Either StagedItem Entity] ->
+            Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
+        sliceMusic'someTags tags heads tails =
+            (slice :) <$> sliceMusic' voices'
+          where
+            focusedTag = minimum tags
+            (sliceResult, sliceTail) = NE.unzip $ getSlice focusedTag <$> heads
+            slice = (0, sliceResult)
+            voices' = NE.zipWith (++) (maybeToList <$> sliceTail) tails
 
-processSlice ::
-    Duration ->
-    Either StagedItem Entity ->
-    (Either DummyItem Entity, Maybe (Either StagedItem Entity))
-processSlice minDuration (Left stagedItem) =
-    ( Left minDuration
-    , if stagedItem > minDuration
-        then Just $ Left (stagedItem - minDuration)
-        else Nothing
-    )
-processSlice minDuration entity@(getDuration -> duration) =
-    ( entity
-    , if duration > minDuration
-        then Just $ Left (duration - minDuration)
-        else Nothing
-    )
+            getSlice ::
+                Tag ->
+                Either StagedItem Entity ->
+                (Either DummyItem Entity, Maybe (Either StagedItem Entity))
+            getSlice _ entity@(Left{}) = (Left 0, Just entity)
+            getSlice _ entity@(Right Event{}) = (Left 0, Just entity)
+            getSlice tag entity@(Right (Tag tag')) =
+                if tag == tag'
+                    then (entity, Nothing)
+                    else (Left 0, Just entity)
+
+        getDuration :: Either StagedItem (Event, Duration) -> Duration
+        getDuration = \case
+            Left stagedDuration -> stagedDuration
+            Right (_, duration) -> duration
+
+debug voices = sliceMusic (Music ((`Voice` IM.empty) <$> voices))

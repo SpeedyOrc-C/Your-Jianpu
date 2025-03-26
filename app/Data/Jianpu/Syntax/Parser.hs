@@ -131,15 +131,15 @@ pPitches = pSingleNote <|> pChord
 pNote :: Parser Sound
 pNote = Note <$> pPitches <*> pure Nothing
 
-pTimedEvent :: Parser Event
-pTimedEvent = do
+pAction :: Parser Event
+pAction = do
     sound <- pNote <|> pRest <|> pClap
     timeMultiplier <- pTimeMultiplier
     dot <- pDot
-    return $ TimedEvent timeMultiplier dot sound
+    return $ Action timeMultiplier dot sound
 
 pEvent :: Parser Entity
-pEvent = Event <$> (pRepeater4 <|> pMultiBarRest <|> pTimedEvent)
+pEvent = Event <$> (pRepeater4 <|> pMultiBarRest <|> pAction)
 
 pBarLine :: Parser Entity
 pBarLine =

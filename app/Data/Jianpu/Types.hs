@@ -5,7 +5,7 @@ import Data.List.NonEmpty (NonEmpty)
 data Event
     = Repeater4
     | MultiBarRest Int
-    | TimedEvent
+    | Action
         { timeMultiplier :: TimeMultiplier
         , dot :: Int
         , sound :: Sound
