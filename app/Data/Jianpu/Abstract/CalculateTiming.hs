@@ -11,8 +11,8 @@ import Data.Ratio
 type TupletMultiplier = Ratio Int
 type TimeSignature = (Int, Int)
 
-calculateDurations :: IntervalMap Int Span -> [Either Tag Event] -> [Entity]
-calculateDurations spans entities =
+calculateDurations :: (IntervalMap Int Span, [Either Tag Event]) -> [Entity]
+calculateDurations (spans, entities) =
     evalState calculation Nothing
   where
     calculation = traverse (calculateDuration tuplets) (zip [0 ..] entities)

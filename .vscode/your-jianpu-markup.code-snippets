@@ -7,8 +7,8 @@
 		"prefix": ["\\cresc", "cresc", "jianqiang", "渐强"],
 		"body": "\\cresc{ $0 }",
 	},
-	"谱号": {
-		"prefix": ["^signature", "signature", "puhao", "谱号"],
+	"拍号": {
+		"prefix": ["^signature", "signature", "paihao", "拍号"],
 		"body": "^signature<$1,$2> $0",
 	},
 	"三连音": {

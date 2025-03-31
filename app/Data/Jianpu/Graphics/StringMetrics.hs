@@ -1,4 +1,4 @@
-module Data.Jianpu.Graphics.TextMetrics where
+module Data.Jianpu.Graphics.StringMetrics where
 
 import Control.Monad
 import Data.List.Utils

@@ -8,7 +8,8 @@ newtype Music = Music [Voice] deriving (Show)
 
 type Duration = Ratio Int
 
-data Voice = Voice
+data Voice
+    = Voice
     { entities :: [Entity]
     , tagSpans :: IM.IntervalMap Int Span
     }
@@ -17,17 +18,26 @@ data Voice = Voice
 data Entity
     = Event {event :: Event, duration :: Duration}
     | Tag Tag
-    deriving (Show, Eq)
+    deriving (Eq)
+
+data Tag
+    = TimeSignature Int Int
+    | BarLine
+    | BeginEndRepeat
+    | BeginRepeat
+    | EndRepeat
+    | DoubleBarLine
+    | EndSign
+    deriving (Show, Eq, Ord)
 
 data Span
     = Slur
-    | Tie
+    | Tie -- Connects two notes of the same pitch
+    | TieInChord [Int] -- Between two chords, connects the notes at the specified indices
     | Tuplet Int
     | Curve Boundary
     | Beam
     | Fermata
-    | Lyrics [String]
-    | TextBelow [String]
     deriving (Show, Eq)
 
 {-
@@ -41,20 +51,18 @@ data Boundary
     | RightOpened
     deriving (Show, Eq)
 
-data Tag
-    = TimeSignature Int Int
-    | BarLine
-    | BeginEndRepeat
-    | BeginRepeat
-    | EndRepeat
-    | DoubleBarLine
-    | EndSign
-    deriving (Show, Eq, Ord)
+instance Show Entity where
+    show :: Entity -> String
+    show Event{..} =
+        show event
+            -- ++ "|"
+            -- ++ (show (numerator duration) ++ "/" ++ show (denominator duration))
+    show (Tag tag) = show tag
 
-x = Event (Action Whole 0 Clap) 1
-x' = Event (Action Minim 0 Clap) (1 % 2)
-x'' = Event (Action Crotchet 0 Clap) (1 % 4)
-b = Tag BarLine
+-- x = Event (Action Whole 0 Clap) 1
+-- x' = Event (Action Minim 0 Clap) (1 % 2)
+-- x'' = Event (Action Crotchet 0 Clap) (1 % 4)
+-- b = Tag BarLine
 
 entityLikeBarLine :: Entity -> Bool
 entityLikeBarLine (Tag tag) = tagLikeBarLine tag

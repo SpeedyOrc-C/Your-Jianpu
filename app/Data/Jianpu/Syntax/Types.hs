@@ -3,7 +3,11 @@ module Data.Jianpu.Syntax.Types where
 import Data.Jianpu.Types
 
 newtype Music = Music [Voice] deriving (Show)
-newtype Voice = Voice [Entity] deriving (Show)
+data Voice = Voice
+    { entities :: [Entity]
+    , lyricsLines :: [[Maybe Syllable]]
+    }
+    deriving (Show)
 
 data Entity
     = Event Event

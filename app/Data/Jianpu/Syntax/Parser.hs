@@ -110,8 +110,7 @@ pPitch = do
 pWhites :: Parser ()
 pWhites = void $ many pWhite
   where
-    pWhite :: Parser ()
-    pWhite = void . asum $ map char " \t\n\r"
+    pWhite = asum $ map char " \t\n\r"
 
 pSingleNote :: Parser (NonEmpty Pitch)
 pSingleNote = NE.singleton <$> pPitch
@@ -189,10 +188,65 @@ pEntity =
         ]
 
 pVoice :: Parser Voice
-pVoice = Voice <$> (pWhites *> many (pEntity <* pWhites))
+pVoice = do
+    void $ try $ string "<voice>"
+    pWhites
+    entities <- pEntities
+    pWhites
+    lyrics <- (:) <$> pLyrics <*> many (try (pWhites *> pLyrics))
+    pWhites
+    void $ try $ string "<end>"
+
+    pure $ Voice entities lyrics
+
+pEntities :: Parser [Entity]
+pEntities = do
+    void $ try $ string "<note>"
+    pWhites
+    entities <- (:) <$> pEntity <*> many (try (pWhites *> pEntity))
+    pWhites
+    void $ try $ string "<end>"
+
+    pure entities
+
+pLyrics :: Parser [Maybe Syllable]
+pLyrics = do
+    void $ try $ string "<lyrics>"
+    pWhites
+    l <- (:) <$> pMaybeSyllable <*> many (try (pWhites *> pMaybeSyllable))
+    pWhites
+    void $ try $ string "<end>"
+
+    pure l
+
+pMaybeSyllable :: Parser (Maybe Syllable)
+pMaybeSyllable =
+    (Nothing <$ char '_')
+        <|> (Just <$> (Syllable <$> pSyllablePrefix <*> pSyllableContent <*> pSyllableSuffix))
+
+pSyllablePrefix :: Parser (Maybe String)
+pSyllablePrefix =
+    optionMaybe . asum . fmap string $
+        ["‘", "“"]
+
+pSyllableContent :: Parser String
+pSyllableContent = concat <$> ((:) <$> pCore <*> many pTail)
+  where
+    pCore = some (noneOf "<>\n\r\t ’”,.!?，。！？、")
+    pTail = (:) <$> (char '\'' <|> char '’') <*> pCore
+
+pSyllableSuffix :: Parser (Maybe String)
+pSyllableSuffix =
+    optionMaybe . asum . fmap string $
+        ["’", "”", ",", ".", "!", "?", "-", "\\;", ":", "，", "。", "！", "？", "、", "；", "："]
 
 pMusic :: Parser Music
-pMusic = Music <$> (pVoice `sepBy` char ';')
+pMusic = Music <$> ((:) <$> pVoice <*> many (try (pWhites *> pVoice)))
 
 run :: Parsec String () a -> String -> Either ParseError a
 run p = runParser p () ""
+
+test :: IO ()
+test = do
+    raw <- readFile "test.yjp"
+    print $ run pMusic raw

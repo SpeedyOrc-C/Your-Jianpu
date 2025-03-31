@@ -1,12 +1,26 @@
-module Data.Jianpu.Spacing where
+module Data.Jianpu.Graphics.Spacing where
 
-import Data.List.NonEmpty (NonEmpty ((:|)))
+import Data.Jianpu.Abstract.Types
+import Data.Jianpu.Graphics.Slice
+import Data.List.NonEmpty (NonEmpty (..))
+import Data.Ratio
 
 data SpringWithRod = SWR
     { rodLength :: Double
     , springConst :: Double
     }
     deriving (Show, Eq)
+
+computeSpringConsts :: MusicSlices -> [Double]
+computeSpringConsts =
+    undefined
+  where
+    computeSpringConsts' :: MusicSlices -> MusicSlice -> Maybe Double
+    -- Since shorter notes are harder to stretch, and tags have no duration,
+    -- the spring constant will be infinite.
+    -- Actually, they can't be stretched at all.
+    -- So we'll use
+    computeSpringConsts' _ (0, _) = Nothing
 
 {- |
 Given a string of springs with rods and its desired length,
@@ -35,3 +49,9 @@ sff springs@((springConst -> c1) :| _) x =
         f = (x - xMin') / c
 
         preStretchForce SWR{rodLength, springConst} = rodLength * springConst
+
+gourlay'sSpacing ::
+    Double -> Duration -> Double -> Duration -> Duration -> Double
+gourlay'sSpacing a dMin dMinSpace ds di =
+    recip (dMinSpace * (1 + a * logBase 2 (fromRational (toRational (di / dMin)))))
+        * fromRational (toRational (di / ds))

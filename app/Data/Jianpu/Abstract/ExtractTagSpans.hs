@@ -3,30 +3,19 @@ module Data.Jianpu.Abstract.ExtractTagSpans where
 import Control.Monad.State
 import Data.IntervalMap (Interval (..), IntervalMap)
 import Data.IntervalMap qualified as IM
+import Data.Jianpu.Abstract.Error
 import Data.Jianpu.Abstract.Types
 import Data.Jianpu.Syntax.Types qualified as Syntax
-import Data.Maybe
-import Data.List.Utils
 import Data.Jianpu.Types (Event)
+import Data.List.Utils
+import Data.Maybe
 
-data TagError
-    = ErrorArgsTimeSignature
-    | ErrorArgsFermata
-    | ErrorArgsBeam
-    | ErrorArgsTie
-    | ErrorArgsSlur
-    | ErrorArgsTuplet
-    | ErrorArgsLyrics
-    | UnknownTag String
-    | TagMismatch
-    deriving (Show)
-
-extractArg0 :: Span -> TagError -> [Syntax.Argument] -> Either TagError Span
+extractArg0 :: Span -> AbstractError -> [Syntax.Argument] -> Either AbstractError Span
 extractArg0 constructor error' = \case
     [] -> Right constructor
     _ -> Left error'
 
-extractTagSpan :: String -> [Syntax.Argument] -> Either TagError Span
+extractTagSpan :: String -> [Syntax.Argument] -> Either AbstractError Span
 extractTagSpan "fermata" = extractArg0 Fermata ErrorArgsFermata
 extractTagSpan "beam" = extractArg0 Beam ErrorArgsBeam
 extractTagSpan "tie" = extractArg0 Tie ErrorArgsTie
@@ -34,8 +23,6 @@ extractTagSpan "slur" = extractArg0 Slur ErrorArgsSlur
 extractTagSpan "tuplet" = \case
     [Syntax.Int count] -> Right $ Tuplet count
     _ -> Left ErrorArgsTuplet
-extractTagSpan "lyrics" =
-    Right . Lyrics . mapMaybe (\case Syntax.String s -> Just s; _ -> Nothing)
 extractTagSpan tag = const . Left $ UnknownTag tag
 
 type TagStartEntry =
@@ -62,7 +49,7 @@ tagMatched (name, _) (Just name', Nothing) = name == name'
 tagMatched (name, Just idx) (Just name', Just idx') = name == name' && idx == idx'
 tagMatched _ _ = False
 
-extractOne :: Syntax.Entity -> State ExtractorState (Either TagError (Maybe (Either Tag Event)))
+extractOne :: Syntax.Entity -> State ExtractorState (Either AbstractError (Maybe (Either Tag Event)))
 extractOne Syntax.BeginEndRepeat =
     oneStepForward >> pure (Right . Just $ Left BeginEndRepeat)
 extractOne Syntax.BeginRepeat =
@@ -121,12 +108,13 @@ extractOne (Syntax.TagEnd name idx) = state $ \es@ES{currentIndex, spans, tagSta
                         { spans =
                             IM.insert
                                 (ClosedInterval startIndex (currentIndex - 1))
-                                tagSpan spans
+                                tagSpan
+                                spans
                         , tagStartStack = tagStartStack'
                         }
                     )
 
-extractTagSpans :: [Syntax.Entity] -> Either [TagError] (IntervalMap Int Span, [Either Tag Event])
+extractTagSpans :: [Syntax.Entity] -> Either [AbstractError] (IntervalMap Int Span, [Either Tag Event])
 extractTagSpans entities' =
     case errors of
         [] -> Right (tagSpans, entities)

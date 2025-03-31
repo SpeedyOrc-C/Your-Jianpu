@@ -6,19 +6,33 @@ const [_1, _2, fontSize, font, ...texts] = process.argv
 const browser = await puppeteer.launch()
 const page = await browser.newPage()
 
-await page.goto(`file://${process.cwd()}/template.html`)
+await page.goto(`file://${process.cwd()}/template.svg`)
+
+const style = `
+@font-face { font-family: my-font; src: url("${font}"); }
+text { font-size: ${fontSize}px; }
+`
 
 await page.evaluate(`
-    const span = document.getElementById("target-span");
-    span.style.fontSize = "${fontSize}px";
-    span.style.fontFamily = "${font}"
+document.querySelector("style").innerHTML = \`${style}\`
+const text = document.querySelector("text")
+text.style.fontSize = "${fontSize}px"
 `)
 
-const callStrings = texts.map(text => `span.innerText = "${text}";JSON.stringify(span.getClientRects()[0])`)
-const rawMetrics = await Promise.all(callStrings.map(x => page.evaluate(x)))
-const metrics = rawMetrics.map(JSON.parse)
-const output = metrics.map(({width, height}) => `${width}*${height}`).join(";")
+const metrics = []
+
+for (const text of texts)
+{
+    await page.evaluate(`text.textContent = \`${text}\``)
+    const clientRectsRaw = await page.evaluate(`JSON.stringify(text.getClientRects())`)
+    const clientRects = JSON.parse(clientRectsRaw)
+    const {width, height} = clientRects[0]
+    metrics.push({width, height})
+}
 
 await browser.close()
 
+const output = metrics.map(({width, height}) => `${width}*${height}`).join("\n")
+
+// console.log(JSON.stringify(metrics))
 console.log(output)

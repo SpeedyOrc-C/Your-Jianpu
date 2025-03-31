@@ -66,18 +66,20 @@ executable yjpc
     -- Modules included in this executable, other than Main.
     other-modules:
         Data.Jianpu.Types,
-        Data.Jianpu.Spacing,
         Data.Jianpu.Syntax.Parser,
         Data.Jianpu.Syntax.Types,
+        Data.Jianpu.Abstract.Main,
         Data.Jianpu.Abstract.Types,
+        Data.Jianpu.Abstract.Error,
         Data.Jianpu.Abstract.ExtractTagSpans,
         Data.Jianpu.Abstract.CalculateTiming,
-        Data.Jianpu.Transform.Lyrics,
-        Data.Jianpu.Graphics.Split,
+        Data.Jianpu.Abstract.GenerateLyricsVoices,
+        Data.Jianpu.Graphics.Slice,
+        Data.Jianpu.Graphics.Spacing,
         Data.Jianpu.Graphics.Render,
         Data.Jianpu.Graphics.XML,
         Data.Jianpu.Graphics.Types,
-        Data.Jianpu.Graphics.TextMetric,
+        Data.Jianpu.Graphics.StringMetrics,
         Data.List.Utils
 
     -- LANGUAGE extensions used by modules in this package.
@@ -96,6 +98,7 @@ executable yjpc
     default-extensions:
           LambdaCase
         , ViewPatterns
+        , RecordWildCards
 
     -- Directories containing source files.
     hs-source-dirs:   app

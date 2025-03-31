@@ -2,7 +2,7 @@
 
 {-# HLINT ignore "Avoid NonEmpty.unzip" #-}
 
-module Data.Jianpu.Graphics.Split where
+module Data.Jianpu.Graphics.Slice (MusicSlice, MusicSlices, sliceMusic) where
 
 import Data.IntervalMap qualified as IM
 import Data.Jianpu.Abstract.Types
@@ -12,14 +12,13 @@ import Data.List.NonEmpty (NonEmpty (..))
 import Data.List.NonEmpty qualified as NE
 import Data.List.Utils
 import Data.Maybe (maybeToList)
-import Debug.Trace (traceShowM)
 
 data SplitError
     = ErrorNoVoice
     deriving (Show)
 
--- Dummy entity to fill in the gaps
-type DummyItem = Duration
+type MusicSlice = (Duration, NonEmpty (Maybe Entity))
+type MusicSlices = [MusicSlice]
 
 -- Used when we're in the middle of a longer event.
 -- Its Duration is the remaining duration.
@@ -33,7 +32,7 @@ all voices have the same number of elements.
 -}
 sliceMusic ::
     Music ->
-    Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
+    Either SplitError MusicSlices
 sliceMusic (Music voices) =
     case NE.nonEmpty voices of
         Nothing -> Left ErrorNoVoice
@@ -41,7 +40,7 @@ sliceMusic (Music voices) =
   where
     sliceMusic' ::
         NonEmpty [Either StagedItem Entity] ->
-        Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
+        Either SplitError MusicSlices
     sliceMusic' (NE.map uncons -> voicesHeadsTails) =
         case sequence voicesHeadsTails of
             -- All voices have got something
@@ -53,6 +52,8 @@ sliceMusic (Music voices) =
                     Left tags ->
                         sliceMusic'someTags tags heads tails
             -- Some voices are empty
+            -- TODO: usually a complete music should have all voices filled
+            --       so I'll leave this for now
             Nothing -> Right []
       where
         pullTagOut ::
@@ -63,9 +64,9 @@ sliceMusic (Music voices) =
         pullTagOut (Right (Tag t)) = Left t
 
         sliceMusic'allHaveDuration ::
-            NonEmpty (Either DummyItem (Event, Duration)) ->
+            NonEmpty (Either StagedItem (Event, Duration)) ->
             NonEmpty [Either StagedItem Entity] ->
-            Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
+            Either SplitError MusicSlices
         sliceMusic'allHaveDuration heads tails =
             (slice :) <$> sliceMusic' voices'
           where
@@ -76,15 +77,15 @@ sliceMusic (Music voices) =
 
             getSlice ::
                 Either StagedItem (Event, Duration) ->
-                (Either DummyItem Entity, Maybe (Either StagedItem Entity))
+                (Maybe Entity, Maybe (Either StagedItem Entity))
             getSlice (Left stagedItem) =
-                ( Left minDuration
+                ( Nothing
                 , if stagedItem > minDuration
                     then Just $ Left (stagedItem - minDuration)
                     else Nothing
                 )
             getSlice (Right (event, duration)) =
-                ( Right (Event event minDuration)
+                ( Just (Event event minDuration)
                 , if duration > minDuration
                     then Just $ Left (duration - minDuration)
                     else Nothing
@@ -92,9 +93,9 @@ sliceMusic (Music voices) =
 
         sliceMusic'someTags ::
             NonEmpty Tag ->
-            NonEmpty (Either DummyItem Entity) ->
+            NonEmpty (Either StagedItem Entity) ->
             NonEmpty [Either StagedItem Entity] ->
-            Either SplitError [(Duration, NonEmpty (Either DummyItem Entity))]
+            Either SplitError MusicSlices
         sliceMusic'someTags tags heads tails =
             (slice :) <$> sliceMusic' voices'
           where
@@ -106,13 +107,13 @@ sliceMusic (Music voices) =
             getSlice ::
                 Tag ->
                 Either StagedItem Entity ->
-                (Either DummyItem Entity, Maybe (Either StagedItem Entity))
-            getSlice _ entity@(Left{}) = (Left 0, Just entity)
-            getSlice _ entity@(Right Event{}) = (Left 0, Just entity)
+                (Maybe Entity, Maybe (Either StagedItem Entity))
+            getSlice _ stagedItem@(Left{}) = (Nothing, Just stagedItem)
+            getSlice _ entity@(Right Event{}) = (Nothing, Just entity)
             getSlice tag entity@(Right (Tag tag')) =
                 if tag == tag'
-                    then (entity, Nothing)
-                    else (Left 0, Just entity)
+                    then (Just (Tag tag'), Nothing)
+                    else (Nothing, Just entity)
 
         getDuration :: Either StagedItem (Event, Duration) -> Duration
         getDuration = \case
