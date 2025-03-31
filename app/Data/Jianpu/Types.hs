@@ -1,6 +1,5 @@
 module Data.Jianpu.Types where
 
-import Data.List (intercalate)
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Maybe
 
@@ -38,6 +37,7 @@ data Syllable = Syllable
     { prefix :: Maybe String
     , content :: String
     , suffix :: Maybe String
+    -- Prefixes and suffixes are usually punctuations
     }
     deriving (Show, Eq)
 

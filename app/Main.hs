@@ -6,6 +6,7 @@ import System.Environment (getArgs)
 import System.Exit
 import Text.Parsec (runParser)
 import Data.Jianpu.Abstract.Main (abstractMain)
+import Data.Jianpu.Graphics.Slice (sliceMusic)
 
 main :: IO ()
 main = do
@@ -24,7 +25,8 @@ main = do
                             print abstractErrors
                             exitFailure
                         Right music -> do
-                            print music
+                            let musicSlices = sliceMusic music
+                            traverse print musicSlices
                             exitSuccess
 
         _ -> do
