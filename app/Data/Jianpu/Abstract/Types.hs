@@ -86,3 +86,6 @@ tagLikeBarLine DoubleBarLine = True
 tagLikeBarLine EndSign = True
 tagLikeBarLine BarLine = True
 tagLikeBarLine _ = False
+
+doubleFromDuration :: Duration -> Double
+doubleFromDuration d = fromIntegral (numerator d) / fromIntegral (denominator d)

@@ -37,6 +37,8 @@ calculateDuration _ (_, Right event@(MultiBarRest bars)) =
         Just (a, b) -> return $ Event event ((bars * a * 4) % b)
 calculateDuration _ (_, Right event@Repeater4) =
     return $ Event event 1
+calculateDuration _ (_, Right (Pronounce {})) =
+    error "Pronunciation's duration depends on the main voice above it, this is calculated in module GenerateLyricsVoices."
 calculateDuration tuplets (index, Right event@(Action{timeMultiplier, dot})) =
     return $ Event event (tuplet * baseDuration * dotExtension)
   where

@@ -6,7 +6,9 @@ import System.Environment (getArgs)
 import System.Exit
 import Text.Parsec (runParser)
 import Data.Jianpu.Abstract.Main (abstractMain)
-import Data.Jianpu.Graphics.Slice (sliceMusic)
+import Data.Jianpu.Graphics.Slice (sliceMusic, MusicSlices (MusicSlices))
+import Data.Jianpu.Graphics.Spacing (computeSmallestDurations, findNeighbours)
+import Data.Foldable (for_)
 
 main :: IO ()
 main = do
@@ -25,8 +27,20 @@ main = do
                             print abstractErrors
                             exitFailure
                         Right music -> do
-                            let musicSlices = sliceMusic music
+                            let MusicSlices musicSlices = sliceMusic music
+
                             traverse print musicSlices
+
+                            let smallestDurations = computeSmallestDurations (MusicSlices musicSlices)
+
+                            print smallestDurations
+
+                            let neighbours = findNeighbours musicSlices
+
+                            for_ neighbours $ \neighbour -> do
+                                putStrLn ""
+                                traverse print neighbour
+
                             exitSuccess
 
         _ -> do

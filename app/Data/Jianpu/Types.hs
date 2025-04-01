@@ -2,6 +2,7 @@ module Data.Jianpu.Types where
 
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Maybe
+import Data.List (intercalate)
 
 data Event
     = Repeater4
@@ -74,7 +75,7 @@ instance Show Sound where
     show Note{..} =
         case pitches of
             p :| [] -> show p
-            p :| ps -> "[" ++ unwords (show <$> p : ps) ++ "]"
+            p :| ps -> intercalate "+" (show <$> p : ps)
 
 instance Show Pitch where
     show :: Pitch -> String

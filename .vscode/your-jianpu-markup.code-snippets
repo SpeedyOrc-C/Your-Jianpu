@@ -1,7 +1,7 @@
 {
 	"延长符号": {
 		"prefix": ["@fermata", "fermata", "yanchang", "延长"],
-		"body": "@fermata ",
+		"body": "@fermata",
 	},
 	"渐强":{
 		"prefix": ["\\cresc", "cresc", "jianqiang", "渐强"],
@@ -9,14 +9,14 @@
 	},
 	"拍号": {
 		"prefix": ["^signature", "signature", "paihao", "拍号"],
-		"body": "^signature<$1,$2> $0",
+		"body": "^signature<$1,$2>",
 	},
 	"三连音": {
-		"prefix": ["t3", "ly3"],
+		"prefix": ["3t", "3ly"],
 		"body": "\\tuplet<3> { $0 }",
 	},
 	"五连音": {
-		"prefix": ["t5", "ly5"],
+		"prefix": ["3t", "5ly"],
 		"body": "\\tuplet<5> { $0 }"
 	},
 }

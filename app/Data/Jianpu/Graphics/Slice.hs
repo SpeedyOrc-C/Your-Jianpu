@@ -2,23 +2,28 @@
 
 {-# HLINT ignore "Avoid NonEmpty.unzip" #-}
 
-module Data.Jianpu.Graphics.Slice (MusicSlice, MusicSlices, sliceMusic) where
+module Data.Jianpu.Graphics.Slice (MusicSlice, MusicSlices (..), sliceMusic, ContEvent(..)) where
 
-import Data.IntervalMap qualified as IM
 import Data.Jianpu.Abstract.Types
+import Data.Jianpu.Types
 import Data.List
 import Data.Maybe
 
-data SplitError
-    = ErrorNoVoice
+newtype MusicSlices = MusicSlices [MusicSlice] deriving (Show)
+type MusicSlice = (Duration, [SliceElement])
+type SliceElement = Maybe (Either ContEvent Entity)
+
+{-
+Some notes start within other notes,
+so this means a note that passes through a timestamp.
+-}
+data ContEvent
+    = ContEvent
+        Event
+        ( Duration -- remaining duration
+        , Duration -- total duration
+        )
     deriving (Show)
-
-type MusicSlice = (Duration, [Maybe Entity])
-type MusicSlices = [MusicSlice]
-
--- Used when we're in the middle of a longer event.
--- Its Duration is the remaining duration.
-type StagedItem = Duration
 
 data AlignedItem
     = AlignTag Tag
@@ -32,9 +37,10 @@ so we need some clever ways to insert dummy elements (Nothing) so that
 all voices have the same number of elements.
 -}
 sliceMusic :: Music -> MusicSlices
-sliceMusic (Music voices) = sliceMusic' (map Right . entities <$> voices)
+sliceMusic (Music voices) =
+    MusicSlices $ sliceMusic' (map Right . entities <$> voices)
 
-sliceMusic' :: [[Either StagedItem Entity]] -> MusicSlices
+sliceMusic' :: [[Either ContEvent Entity]] -> [MusicSlice]
 sliceMusic' (map uncons -> maybeHeadTails) =
     case catMaybes maybeHeadTails of
         [] -> []
@@ -56,16 +62,24 @@ sliceMusic' (map uncons -> maybeHeadTails) =
                     case alignedItem of
                         AlignTag alignedTag ->
                             if tag == alignedTag
-                                then (Just (Tag tag), t)
+                                then (Just (Right (Tag tag)), t)
                                 else (Nothing, Right (Tag tag) : t)
                         _ -> error "This is not possible."
-                Just (Left stagedItem, t) ->
-                    ( Nothing
+                Just (Left stagedElement@(ContEvent event (remainingDuration, totalDuration)), t) ->
+                    ( Just (Left stagedElement)
                     , case alignedItem of
-                        AlignTag _ -> Left stagedItem : t
+                        AlignTag _ -> Left stagedElement : t
                         AlignDuration alignedDuration ->
-                            ( if alignedDuration < stagedItem
-                                then Left (stagedItem - alignedDuration) : t
+                            ( if alignedDuration < remainingDuration
+                                then
+                                    Left
+                                        ( ContEvent
+                                            event
+                                            ( remainingDuration - alignedDuration
+                                            , totalDuration
+                                            )
+                                        )
+                                        : t
                                 else t
                             )
                     )
@@ -76,19 +90,28 @@ sliceMusic' (map uncons -> maybeHeadTails) =
                             , Right (Event event duration) : t
                             )
                         AlignDuration alignDuration ->
-                            ( Just (Event event duration)
+                            ( Just (Right (Event event duration))
                             , if alignDuration < duration
-                                then Left (duration - alignDuration) : t
+                                then
+                                    Left
+                                        ( ContEvent
+                                            event
+                                            ( duration - alignDuration
+                                            , duration
+                                            )
+                                        )
+                                        : t
                                 else t
                             )
 
             alignedItem = minimum alignedItems
 
             alignedItems = flip map heads $ \case
-                Left stagedDuration -> AlignDuration stagedDuration
-                Right (Event _ duration) -> AlignDuration duration
-                Right (Tag tag) -> AlignTag tag
+                Left (ContEvent _ (stagedDuration, _)) ->
+                    AlignDuration stagedDuration
+                Right (Event _ duration) ->
+                    AlignDuration duration
+                Right (Tag tag) ->
+                    AlignTag tag
 
             heads = map fst headsTails
-
-debug voices = sliceMusic (Music ((`Voice` IM.empty) <$> voices))

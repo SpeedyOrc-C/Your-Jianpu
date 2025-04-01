@@ -108,24 +108,29 @@ pPitch = do
     return $ Pitch whiteKey transpose accidental
 
 pWhites :: Parser ()
-pWhites = void $ many pWhite
-  where
-    pWhite = asum $ map char " \t\n\r"
+pWhites = void $ many (pComment <|> pWhite)
+
+pWhites1 :: Parser ()
+pWhites1 = void $ some pWhite
+
+pWhite :: Parser ()
+pWhite = void $ asum (map char " \t\n\r")
+
+pComment :: Parser ()
+pComment = void $ do
+    void $ try (string "--")
+    void $ many (noneOf "\n\r")
+    void $ some (asum (map char "\n\r"))
 
 pSingleNote :: Parser (NonEmpty Pitch)
 pSingleNote = NE.singleton <$> pPitch
 
-pChord :: Parser (NonEmpty Pitch)
-pChord = do
-    void $ char '['
-    pWhites
-    firstPitch <- pPitch <* pWhites
-    tailPitches <- some $ pPitch <* pWhites
-    void $ char ']'
-    return $ firstPitch :| tailPitches
-
 pPitches :: Parser (NonEmpty Pitch)
-pPitches = pSingleNote <|> pChord
+pPitches = do
+    pitches <- pPitch `sepBy1` char '+'
+    case pitches of
+        [] -> error "This is not possible."
+        p : ps -> return $ p :| ps
 
 pNote :: Parser Sound
 pNote = Note <$> pPitches <*> pure Nothing
@@ -189,33 +194,38 @@ pEntity =
 
 pVoice :: Parser Voice
 pVoice = do
-    void $ try $ string "<voice>"
+    void $ string "voice"
+    pWhites
+    void $ char '['
     pWhites
     entities <- pEntities
     pWhites
-    lyrics <- (:) <$> pLyrics <*> many (try (pWhites *> pLyrics))
-    pWhites
-    void $ try $ string "<end>"
+    lyrics <- many (try pLyrics <* pWhites)
+    void $ char ']'
 
     pure $ Voice entities lyrics
 
 pEntities :: Parser [Entity]
 pEntities = do
-    void $ try $ string "<note>"
+    void $ string "note"
     pWhites
-    entities <- (:) <$> pEntity <*> many (try (pWhites *> pEntity))
+    void $ char '['
     pWhites
-    void $ try $ string "<end>"
+    entities <- many (try pEntity <* pWhites)
+    pWhites
+    void $ char ']'
 
     pure entities
 
 pLyrics :: Parser [Maybe Syllable]
 pLyrics = do
-    void $ try $ string "<lyrics>"
+    void $ string "lyrics"
     pWhites
-    l <- (:) <$> pMaybeSyllable <*> many (try (pWhites *> pMaybeSyllable))
+    void $ char '['
     pWhites
-    void $ try $ string "<end>"
+    l <- many (try pMaybeSyllable <* pWhites)
+    pWhites
+    void $ char ']'
 
     pure l
 
@@ -232,8 +242,8 @@ pSyllablePrefix =
 pSyllableContent :: Parser String
 pSyllableContent = concat <$> ((:) <$> pCore <*> many pTail)
   where
-    pCore = some (noneOf "<>\n\r\t ’”,.!?，。！？、")
-    pTail = (:) <$> (char '\'' <|> char '’') <*> pCore
+    pCore = some (noneOf "<>[]{}\n\r\t ’”,.!?，。！？、")
+    pTail = (:) <$> oneOf "'’" <*> pCore
 
 pSyllableSuffix :: Parser (Maybe String)
 pSyllableSuffix =
@@ -241,7 +251,10 @@ pSyllableSuffix =
         ["’", "”", ",", ".", "!", "?", "-", "\\;", ":", "，", "。", "！", "？", "、", "；", "："]
 
 pMusic :: Parser Music
-pMusic = Music <$> ((:) <$> pVoice <*> many (try (pWhites *> pVoice)))
+pMusic = Music <$> many (try pVoice <* pWhites)
+
+pFile :: Parser Music
+pFile = pWhites *> pMusic <* eof
 
 run :: Parsec String () a -> String -> Either ParseError a
 run p = runParser p () ""
@@ -249,4 +262,4 @@ run p = runParser p () ""
 test :: IO ()
 test = do
     raw <- readFile "test.yjp"
-    print $ run pMusic raw
+    print $ run pFile raw

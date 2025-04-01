@@ -1,9 +1,20 @@
 module Data.Jianpu.Graphics.Spacing where
 
+{-
+I implement the spacing algorithm described in:
+
+Kai Renz, geb. Flade.
+Algorithms and Data Structures for a Music Notation System
+based on GUIDO Music Notation.
+Darmstadt, 2002.
+https://guido.grame.fr/papers/kai_renz_diss.pdf
+-}
+
+import Control.Monad.State
 import Data.Jianpu.Abstract.Types
 import Data.Jianpu.Graphics.Slice
+import Data.List
 import Data.List.NonEmpty (NonEmpty (..))
-import Data.Ratio
 
 data SpringWithRod = SWR
     { rodLength :: Double
@@ -11,16 +22,45 @@ data SpringWithRod = SWR
     }
     deriving (Show, Eq)
 
-computeSpringConsts :: MusicSlices -> [Double]
-computeSpringConsts =
-    undefined
+computeSmallestDurations :: MusicSlices -> [Duration]
+computeSmallestDurations (MusicSlices []) = []
+computeSmallestDurations (MusicSlices slices@((_, firstSlice) : _)) =
+    evalState
+        (traverse computeSmallestDurations' slices)
+        (Nothing <$ firstSlice)
   where
-    computeSpringConsts' :: MusicSlices -> MusicSlice -> Maybe Double
-    -- Since shorter notes are harder to stretch, and tags have no duration,
-    -- the spring constant will be infinite.
-    -- Actually, they can't be stretched at all.
-    -- So we'll use
-    computeSpringConsts' _ (0, _) = Nothing
+    computeSmallestDurations' :: MusicSlice -> State [Maybe Duration] Duration
+    computeSmallestDurations' (0, slice) =
+        state $ const (0, Nothing <$ slice)
+    computeSmallestDurations' (_, slice) = state $ \previousDurations ->
+        let newPreviousDurations = zipWith update previousDurations slice
+         in ( maybe 0 minimum (sequence newPreviousDurations)
+            , newPreviousDurations
+            )
+      where
+        update _ (Just (Right (Tag{}))) = Just 0
+        update _ (Just (Right (Event{duration}))) = Just duration
+        update _ (Just (Left (ContEvent _ (_, duration)))) = Just duration
+        update previousDuration Nothing = previousDuration
+
+findNeighbours :: [MusicSlice] -> [[MusicSlice]]
+findNeighbours = groupBy $ \(_, slice1) (_, slice2) ->
+    or (zipWith testNeighbour slice1 slice2)
+
+testNeighbour :: Maybe (Either ContEvent Entity) -> Maybe (Either ContEvent Entity) -> Bool
+testNeighbour
+    (Just (Right (Event{duration = d1})))
+    (Just (Right (Event{duration = d2}))) = d1 == d2
+testNeighbour
+    (Just (Right (Event{duration = d1})))
+    (Just (Left (ContEvent _ (_, d2)))) = d1 == d2
+testNeighbour
+    (Just (Left (ContEvent _ (_, d1))))
+    (Just (Right (Event{duration = d2}))) = d1 == d2
+testNeighbour
+    (Just (Left (ContEvent _ (_, d1))))
+    (Just (Left (ContEvent _ (_, d2)))) = d1 == d2
+testNeighbour _ _ = False
 
 {- |
 Given a string of springs with rods and its desired length,
