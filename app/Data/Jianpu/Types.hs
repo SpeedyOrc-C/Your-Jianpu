@@ -1,8 +1,11 @@
 module Data.Jianpu.Types where
 
+import Data.List (intercalate)
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Maybe
-import Data.List (intercalate)
+import Data.Ratio
+
+type Duration = Ratio Int
 
 data Event
     = Repeater4
@@ -16,7 +19,10 @@ data Event
     deriving (Eq)
 
 data TimeMultiplier = Whole | Minim | Crotchet | Quaver | Semiquaver
-    deriving (Eq)
+    deriving
+        ( Eq
+        , Enum -- Number of underlines below the note
+        )
 
 data Sound
     = Note
@@ -51,6 +57,9 @@ data Accidental = Natural | Sharp | Flat | DoubleSharp | DoubleFlat
 newtype Appoggiatura = Appoggiatura [Sound]
     deriving (Show, Eq)
 
+doubleFromDuration :: Duration -> Double
+doubleFromDuration d = fromIntegral (numerator d) / fromIntegral (denominator d)
+
 instance Show Event where
     show :: Event -> String
     show Repeater4 = "-"
@@ -84,9 +93,10 @@ instance Show Pitch where
             ++ show whiteKey
             ++ ( if octaveTranspose > 0
                     then replicate octaveTranspose '\''
-                    else if octaveTranspose < 0
-                        then replicate (negate octaveTranspose) '.'
-                        else ""
+                    else
+                        if octaveTranspose < 0
+                            then replicate (negate octaveTranspose) '.'
+                            else ""
                )
 
 instance Show Accidental where

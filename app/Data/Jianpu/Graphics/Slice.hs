@@ -2,16 +2,27 @@
 
 {-# HLINT ignore "Avoid NonEmpty.unzip" #-}
 
-module Data.Jianpu.Graphics.Slice (MusicSlice, MusicSlices (..), sliceMusic, ContEvent(..)) where
+module Data.Jianpu.Graphics.Slice where
 
-import Data.Jianpu.Abstract.Types
+import Control.Arrow
+import Control.Monad.State
+import Data.IntervalMap (IntervalMap)
+import Data.IntervalMap qualified as IM
+import Data.Jianpu.Abstract.Types qualified as Abstract
 import Data.Jianpu.Types
 import Data.List
 import Data.Maybe
 
-newtype MusicSlices = MusicSlices [MusicSlice] deriving (Show)
-type MusicSlice = (Duration, [SliceElement])
-type SliceElement = Maybe (Either ContEvent Entity)
+data Slices = Slices [Slice] [IntervalMap Int Abstract.Span]
+    deriving (Show)
+
+data Slice = Slice
+    { duration :: Duration
+    , elements :: [SliceElement]
+    }
+    deriving (Show)
+
+type SliceElement = Maybe (Either ContEvent Abstract.Entity)
 
 {-
 Some notes start within other notes,
@@ -26,7 +37,7 @@ data ContEvent
     deriving (Show)
 
 data AlignedItem
-    = AlignTag Tag
+    = AlignTag Abstract.Tag
     | AlignDuration Duration
     deriving (Show, Eq, Ord)
 
@@ -35,12 +46,43 @@ Slice a music by their timings. This works similar to matrix transposing,
 but each voice may have different number of elements,
 so we need some clever ways to insert dummy elements (Nothing) so that
 all voices have the same number of elements.
--}
-sliceMusic :: Music -> MusicSlices
-sliceMusic (Music voices) =
-    MusicSlices $ sliceMusic' (map Right . entities <$> voices)
 
-sliceMusic' :: [[Either ContEvent Entity]] -> [MusicSlice]
+The indices of spans will shift as well because of the new dummy elements.
+-}
+sliceMusic :: Abstract.Music -> Slices
+sliceMusic (Abstract.Music voices) =
+    Slices (zipWith Slice durations elementsGroups) spansGroups
+  where
+    (durations, elementsGroups) =
+        unzip $ sliceMusic' (map Right . Abstract.entities <$> voices)
+    spansGroups = zipWith ($) spansMappers (Abstract.spans <$> voices)
+    spansMappers = computeSpansMapper <$> slicesByVoice
+    slicesByVoice = transpose elementsGroups
+
+computeSpansMapper ::
+    [SliceElement] ->
+    (IntervalMap Int Abstract.Span -> IntervalMap Int Abstract.Span)
+computeSpansMapper = do
+    fmap (\case Just (Right{}) -> True; _ -> False)
+        >>> computeOldToNewIndices
+        >>> (\pairs a -> fromJust (lookup a pairs))
+        >>> (\f -> IM.toList >>> fmap (first (fmap f)) >>> IM.fromList)
+
+computeOldToNewIndices :: [Bool] -> [(Int, Int)]
+computeOldToNewIndices mask = evalState (f mask) (0, 0)
+  where
+    f [] = pure []
+    f (False : mask') = do
+        (old, new) <- get
+        put (old, new + 1)
+        f mask'
+    f (True : mask') = do
+        (old, new) <- get
+        put (old + 1, new + 1)
+        ((old, new) :) <$> f mask'
+
+sliceMusic' ::
+    [[Either ContEvent Abstract.Entity]] -> [(Duration, [SliceElement])]
 sliceMusic' (map uncons -> maybeHeadTails) =
     case catMaybes maybeHeadTails of
         [] -> []
@@ -58,17 +100,17 @@ sliceMusic' (map uncons -> maybeHeadTails) =
 
             newHeadsTails = flip map maybeHeadTails $ \case
                 Nothing -> (Nothing, [])
-                Just (Right (Tag tag), t) ->
+                Just (Right (Abstract.Tag tag), t) ->
                     case alignedItem of
                         AlignTag alignedTag ->
                             if tag == alignedTag
-                                then (Just (Right (Tag tag)), t)
-                                else (Nothing, Right (Tag tag) : t)
+                                then (Just (Right (Abstract.Tag tag)), t)
+                                else (Nothing, Right (Abstract.Tag tag) : t)
                         _ -> error "This is not possible."
-                Just (Left stagedElement@(ContEvent event (remainingDuration, totalDuration)), t) ->
-                    ( Just (Left stagedElement)
+                Just (Left cont@(ContEvent event (remainingDuration, totalDuration)), t) ->
+                    ( Just (Left cont)
                     , case alignedItem of
-                        AlignTag _ -> Left stagedElement : t
+                        AlignTag _ -> Left cont : t
                         AlignDuration alignedDuration ->
                             ( if alignedDuration < remainingDuration
                                 then
@@ -83,14 +125,14 @@ sliceMusic' (map uncons -> maybeHeadTails) =
                                 else t
                             )
                     )
-                Just (Right (Event event duration), t) ->
+                Just (Right (Abstract.Event event duration), t) ->
                     case alignedItem of
                         AlignTag _ ->
                             ( Nothing
-                            , Right (Event event duration) : t
+                            , Right (Abstract.Event event duration) : t
                             )
                         AlignDuration alignDuration ->
-                            ( Just (Right (Event event duration))
+                            ( Just (Right (Abstract.Event event duration))
                             , if alignDuration < duration
                                 then
                                     Left
@@ -109,9 +151,9 @@ sliceMusic' (map uncons -> maybeHeadTails) =
             alignedItems = flip map heads $ \case
                 Left (ContEvent _ (stagedDuration, _)) ->
                     AlignDuration stagedDuration
-                Right (Event _ duration) ->
+                Right (Abstract.Event _ duration) ->
                     AlignDuration duration
-                Right (Tag tag) ->
+                Right (Abstract.Tag tag) ->
                     AlignTag tag
 
             heads = map fst headsTails

@@ -34,7 +34,7 @@ type TagStartEntry =
 
 data ExtractorState = ES
     { currentIndex :: Int
-    , spans :: IntervalMap Int Span
+    , currentSpans :: IntervalMap Int Span
     , tagStartStack :: [TagStartEntry]
     }
     deriving (Show)
@@ -74,15 +74,15 @@ extractOne (Syntax.Tag1 name args) =
     case extractTagSpan name args of
         Left error' -> return $ Left error'
         Right tagSpan ->
-            state $ \es@ES{currentIndex, spans} ->
+            state $ \es@ES{currentIndex, currentSpans} ->
                 ( return Nothing
                 , es
                     { currentIndex
-                    , spans =
+                    , currentSpans =
                         IM.insert
                             (ClosedInterval currentIndex currentIndex)
                             tagSpan
-                            spans
+                            currentSpans
                     }
                 )
 extractOne (Syntax.TagStart name idx args) =
@@ -90,7 +90,7 @@ extractOne (Syntax.TagStart name idx args) =
         ( Right Nothing
         , es{tagStartStack = (currentIndex, name, idx, args) : tagStartStack}
         )
-extractOne (Syntax.TagEnd name idx) = state $ \es@ES{currentIndex, spans, tagStartStack} -> do
+extractOne (Syntax.TagEnd name idx) = state $ \es@ES{currentIndex, currentSpans, tagStartStack} -> do
     let thatMatchesThis :: TagStartEntry -> Bool
         thatMatchesThis (_, name', idx', _) = tagMatched (name', idx') (name, idx)
 
@@ -105,11 +105,11 @@ extractOne (Syntax.TagEnd name idx) = state $ \es@ES{currentIndex, spans, tagSta
                 Right tagSpan ->
                     ( Right Nothing
                     , es
-                        { spans =
+                        { currentSpans =
                             IM.insert
                                 (ClosedInterval startIndex (currentIndex - 1))
                                 tagSpan
-                                spans
+                                currentSpans
                         , tagStartStack = tagStartStack'
                         }
                     )
@@ -120,7 +120,7 @@ extractTagSpans entities' =
         [] -> Right (tagSpans, entities)
         _ -> Left errors
   where
-    initialState = ES{currentIndex = 0, tagStartStack = [], spans = IM.empty}
+    initialState = ES{currentIndex = 0, tagStartStack = [], currentSpans = IM.empty}
 
     (xs, s) = runState (traverse extractOne entities') initialState
 
@@ -128,7 +128,7 @@ extractTagSpans entities' =
         Right (Just entity) -> Just entity
         _ -> Nothing
 
-    ES{spans = tagSpans} = s
+    ES{currentSpans = tagSpans} = s
 
     errors = flip mapMaybe xs $ \case
         Left error' -> Just error'

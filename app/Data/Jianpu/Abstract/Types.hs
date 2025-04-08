@@ -6,12 +6,10 @@ import Data.Ratio
 
 newtype Music = Music [Voice] deriving (Show)
 
-type Duration = Ratio Int
-
 data Voice
     = Voice
     { entities :: [Entity]
-    , tagSpans :: IM.IntervalMap Int Span
+    , spans :: IM.IntervalMap Int Span
     }
     deriving (Show)
 
@@ -40,11 +38,6 @@ data Span
     | Fermata
     deriving (Show, Eq)
 
-{-
-Closed       ┌─────┐
-LeftOpened   ┌──────
-RightOpened  ──────┐
--}
 data Boundary
     = Closed
     | LeftOpened
@@ -69,11 +62,6 @@ instance Show Tag where
     show DoubleBarLine = "||"
     show EndSign = "|||"
 
--- x = Event (Action Whole 0 Clap) 1
--- x' = Event (Action Minim 0 Clap) (1 % 2)
--- x'' = Event (Action Crotchet 0 Clap) (1 % 4)
--- b = Tag BarLine
-
 entityLikeBarLine :: Entity -> Bool
 entityLikeBarLine (Tag tag) = tagLikeBarLine tag
 entityLikeBarLine _ = False
@@ -86,6 +74,3 @@ tagLikeBarLine DoubleBarLine = True
 tagLikeBarLine EndSign = True
 tagLikeBarLine BarLine = True
 tagLikeBarLine _ = False
-
-doubleFromDuration :: Duration -> Double
-doubleFromDuration d = fromIntegral (numerator d) / fromIntegral (denominator d)
