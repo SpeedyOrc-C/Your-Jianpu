@@ -88,10 +88,10 @@ getSvgString (Transform position (scaleX, scaleY), anchorPosition, object) = do
         puts "\n"
 
 d = writeFile "./svg-output/index.svg" $ (`appEndo` "") . execWriter $ do
-    puts "<svg xmlns=\"http://www.w3.org/2000/svg\" viewbox=\"0 0 1000 1000\">\n"
+    puts "<svg xmlns=\"http://www.w3.org/2000/svg\" viewbox=\"0 0 2000 2000\">\n"
 
     sequence_ . flip runReader defaultRenderConfig $ do
-        tree <- drawEvent (Action Whole 5 (Note (Pitch K6 5 (Just DoubleFlat) :| []) undefined)) -- (Pitch K6 5 (Just DoubleFlat)) 5 Whole
+        tree <- drawEvent (Action Whole 5 (Note (Pitch K6 5 (Just DoubleFlat) :| []) Nothing))
         let flatTree = flattenLayoutTree (LTNode (move 200 200) [tree])
         traverse getSvgString flatTree
 

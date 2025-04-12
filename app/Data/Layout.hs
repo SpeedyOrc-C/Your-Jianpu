@@ -10,7 +10,6 @@ data Transform = Transform
     { localPosition :: XY
     , localScale :: XY
     }
-    deriving (Show)
 
 data BoundingBox = BBox BBox | NoBox
     deriving (Show, Eq)
@@ -30,13 +29,15 @@ data AnchorPosition
 data LayoutTree a
     = LTLeaf AnchorPosition a
     | LTNode Transform [LayoutTree a]
-    deriving (Show)
 
 newtype LayoutFlat a = LayoutFlat [(Transform, AnchorPosition, a)]
     deriving (Show)
 
 class HasSize config a where
-    getSize :: a -> Reader config BoundingBox
+    getSize :: a -> Reader config Size
+
+class HasBox config a where
+    getBox :: a -> Reader config BoundingBox
 
 flattenLayoutTree :: LayoutTree a -> [(Transform, AnchorPosition, a)]
 flattenLayoutTree tree =
@@ -66,11 +67,17 @@ instance Semigroup BoundingBox where
     NoBox <> box = box
     box <> NoBox = box
     (BBox ((ax1, ay1), (ax2, ay2))) <> (BBox ((bx1, by1), (bx2, by2))) =
-        BBox ((min ax1 bx1, min ay1 by1), (min ax2 bx2, min ay2 by2))
+        BBox ((min ax1 bx1, min ay1 by1), (max ax2 bx2, max ay2 by2))
 
 instance Monoid BoundingBox where
     mempty :: BoundingBox
     mempty = NoBox
+
+instance Show Transform where
+    show :: Transform -> String
+    show (Transform (0, 0) (1, 1)) = "I"
+    show (Transform (x, y) (sx, sy)) =
+        show (x, y) ++ "~" ++ show (sx, sy)
 
 instance Semigroup Transform where
     (<>) :: Transform -> Transform -> Transform
@@ -81,41 +88,41 @@ instance Monoid Transform where
     mempty :: Transform
     mempty = Transform (0, 0) (1, 1)
 
+instance Show a => Show (LayoutTree a) where
+    show :: Show a => LayoutTree a -> String
+    show (LTNode _ []) = ""
+    show (LTNode transform trees) = show transform ++ ":" ++ show trees
+    show (LTLeaf anchorAlignment object) =
+        show anchorAlignment ++ ":" ++ show object
+
 computeBox :: XY -> Size -> AnchorPosition -> BBox
 computeBox (x, y) (sx, sy) anchorPosition =
     ((x + dx, y + dy), (x + sx + dx, y + sy + dy))
   where
-    dx = - (px * sx)
-    dy = - (py * sy)
-    (px, py) =
-        case anchorPosition of
-            AP xy -> xy
-            APCentre -> (0.5, 0.5)
-            APTop -> (0.5, 0)
-            APBottom -> (0.5, 1)
-            APLeft -> (0, 0.5)
-            APRight -> (1, 0.5)
-            APTopRight -> (1, 0)
+    dx = -(px * sx)
+    dy = -(py * sy)
+    (px, py) = normAnchorPosition anchorPosition
 
-instance (HasSize config a) => HasSize config (LayoutTree a) where
-    getSize :: (HasSize config a) => LayoutTree a -> Reader config BoundingBox
-    getSize (LTLeaf anchorAlignment a) = do
-        box <- getSize a
-        pure $ case box of
-            NoBox -> NoBox
-            BBox ((bx1, by1), (bx2, by2)) ->
-                BBox
-                    ( (-(ax * width), -(ay * height))
-                    , ((1 - ax) * width, (1 - ay) * height)
-                    )
-              where
-                width = bx2 - bx1
-                height = by2 - by1
-                (ax, ay) = case anchorAlignment of
-                    AP anchor -> anchor
-                    APCentre -> (0.5, 0.5)
-    getSize (LTNode (Transform (dx, dy) (sx, sy)) ts) = do
-        boxes <- traverse getSize ts
+normAnchorPosition :: AnchorPosition -> XY
+normAnchorPosition (AP xy) = xy
+normAnchorPosition APCentre = (0.5, 0.5)
+normAnchorPosition APTop = (0.5, 0)
+normAnchorPosition APBottom = (0.5, 1)
+normAnchorPosition APLeft = (0, 0.5)
+normAnchorPosition APRight = (1, 0.5)
+normAnchorPosition APTopRight = (1, 0)
+
+instance (HasSize config a) => HasBox config (LayoutTree a) where
+    getBox :: HasSize config a => LayoutTree a -> Reader config BoundingBox
+    getBox (LTLeaf anchorAlignment a) = do
+        let (ax, ay) = normAnchorPosition anchorAlignment
+        (width, height) <- getSize a
+        pure . BBox $
+            ( (-(ax * width), -(ay * height))
+            , ((1 - ax) * width, (1 - ay) * height)
+            )
+    getBox (LTNode (Transform (dx, dy) (sx, sy)) ts) = do
+        boxes <- traverse getBox ts
         pure $ case mconcat boxes of
             NoBox -> NoBox
             BBox ((x1, y1), (x2, y2)) ->

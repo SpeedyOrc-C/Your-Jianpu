@@ -2,6 +2,8 @@ module Data.Jianpu.Graphics.Render where
 
 import Control.Monad.Reader
 import Control.Monad.Writer
+import Data.Jianpu.Abstract
+import Data.Jianpu.Graphics
 import Data.Jianpu.Graphics.Config
 import Data.Jianpu.Types
 import Data.Layout
@@ -23,12 +25,17 @@ data GAccidental = GNatural | GSharp | GFlat | GDoubleSharp | GDoubleFlat
     deriving (Show)
 
 instance HasSize RenderConfig RenderObject where
-    getSize :: RenderObject -> Reader RenderConfig BoundingBox
+    getSize :: RenderObject -> Reader RenderConfig Size
     getSize Glyph{} = do
         glyphHeight <- asks getGlyphHeight
         glyphWidth <- asks getGlyphWidth
-        pure $ BBox ((0, 0), (glyphWidth, glyphHeight))
-    getSize _ = undefined
+        pure (glyphWidth, glyphHeight)
+    getSize GAccidental{} = do
+        accidentalHeight <- asks getAccidentalHeight
+        accidentalWidth <- asks getAccidentalWidth
+        pure (accidentalWidth, accidentalHeight)
+    getSize (Circle r) = pure (2 * r, 2 * r)
+    getSize (Rectangle sx sy) = pure (sx, sy)
 
 (<+>) :: (Applicative f) => f a -> f b -> f (a, b)
 fa <+> fb = (,) <$> fa <*> fb
@@ -42,6 +49,17 @@ computeSize (Circle r) =
     pure (2 * r, 2 * r)
 computeSize (Rectangle sx sy) =
     pure (sx, sy)
+
+{-
+TODO:
+Need more information about vertical spacing of other notes
+when there are ties inside chords.
+Add them as new parameters in the future!
+-}
+drawSliceElement :: SliceElement -> Reader RenderConfig (LayoutTree RenderObject)
+drawSliceElement Nothing = pure $ LTNode mempty []
+drawSliceElement (Just (Left _)) = pure $ LTNode mempty []
+drawSliceElement (Just (Right (Event{event}))) = drawEvent event
 
 drawEvent :: Event -> Reader RenderConfig (LayoutTree RenderObject)
 drawEvent Action{..} = drawSound sound dot timeMultiplier

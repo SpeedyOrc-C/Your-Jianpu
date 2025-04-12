@@ -9,32 +9,10 @@ import Control.Monad.State
 import Data.IntervalMap (IntervalMap)
 import Data.IntervalMap qualified as IM
 import Data.Jianpu.Abstract qualified as Abstract
+import Data.Jianpu.Graphics
 import Data.Jianpu.Types
 import Data.List
 import Data.Maybe
-
-data Slices = Slices [Slice] [IntervalMap Int Abstract.Span]
-    deriving (Show)
-
-data Slice = Slice
-    { duration :: Duration
-    , elements :: [SliceElement]
-    }
-    deriving (Show)
-
-type SliceElement = Maybe (Either ContEvent Abstract.Entity)
-
-{-
-Some notes start within other notes,
-so this means a note that passes through a timestamp.
--}
-data ContEvent
-    = ContEvent
-        Event
-        ( Duration -- remaining duration
-        , Duration -- total duration
-        )
-    deriving (Show)
 
 data AlignedItem
     = AlignTag Abstract.Tag

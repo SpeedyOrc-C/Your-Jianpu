@@ -13,10 +13,10 @@ https://guido.grame.fr/papers/kai_renz_diss.pdf
 
 import Control.Monad.State
 import Data.Jianpu.Abstract qualified as Abstract
-import Data.Jianpu.Graphics.Slice
+import Data.Jianpu.Graphics
 import Data.Jianpu.Types
 import Data.List
-import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty (NonEmpty (..))
 
 -- TODO: Using Gourlay's for now, implement improved algorithm later...
 computeSpringConstants :: [Slice] -> [Double]
@@ -29,7 +29,7 @@ computeSpringConstants slices =
 
     embedSmallestDurations =
         zipWith
-            ( \smallestDuration (Slice {duration=springDuration}) ->
+            ( \smallestDuration (Slice{duration = springDuration}) ->
                 AuxD{smallestDuration, springDuration}
             )
             smallestDurations
@@ -48,7 +48,7 @@ computeSmallestDurations slices@(Slice{elements = firstSlice} : _) =
     computeSmallestDurations' :: Slice -> State [Maybe Duration] Duration
     computeSmallestDurations' Slice{duration = 0, elements = slice} =
         state $ const (0, Nothing <$ slice)
-    computeSmallestDurations' Slice {elements=slice} = state $ \previousDurations ->
+    computeSmallestDurations' Slice{elements = slice} = state $ \previousDurations ->
         let newPreviousDurations = zipWith update previousDurations slice
          in ( maybe 0 minimum (sequence newPreviousDurations)
             , newPreviousDurations
@@ -131,6 +131,7 @@ sff springs@((springConst -> c1) :| _) x =
                 sff' (spring' :| springs'') xMin' (1 / (1 / c + 1 / cI))
       where
         xMin' = xMin - xI
-        f = (x - xMin') / c
+        -- f = (x - xMin') / c
+        f = (x - xMin') * c
 
         preStretchForce SWR{rodLength, springConst} = rodLength * springConst
