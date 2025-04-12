@@ -12,10 +12,11 @@ https://guido.grame.fr/papers/kai_renz_diss.pdf
 -}
 
 import Control.Monad.State
-import Data.Jianpu.Abstract.Types qualified as Abstract
+import Data.Jianpu.Abstract qualified as Abstract
 import Data.Jianpu.Graphics.Slice
 import Data.Jianpu.Types
 import Data.List
+import Data.List.NonEmpty (NonEmpty(..))
 
 -- TODO: Using Gourlay's for now, implement improved algorithm later...
 computeSpringConstants :: [Slice] -> [Double]
@@ -99,3 +100,37 @@ gourlayF
       where
         ratio1 = doubleFromDuration (smallestDuration / minDuration)
         ratio2 = doubleFromDuration (smallestDuration / springDuration)
+
+data SpringWithRod = SWR
+    { rodLength :: Double
+    , springConst :: Double
+    }
+    deriving (Show, Eq)
+
+{- |
+Given a string of springs with rods and its desired length,
+returns the force needed to stretch them to that length.
+
+SFF stands for Spring-Force-Function.
+-}
+sff :: NonEmpty SpringWithRod -> Double -> Double
+sff springs@((springConst -> c1) :| _) x =
+    if x <= xMinInit
+        then 0
+        else sff' springs xMinInit c1
+  where
+    xMinInit = sum (rodLength <$> springs)
+
+    sff' (SWR{rodLength = xI} :| springs') xMin c =
+        case springs' of
+            [] -> f
+            ((preStretchForce -> nextSpringPreStretchForce) : _)
+                | f <= nextSpringPreStretchForce ->
+                    f
+            (spring'@(SWR{springConst = cI}) : springs'') ->
+                sff' (spring' :| springs'') xMin' (1 / (1 / c + 1 / cI))
+      where
+        xMin' = xMin - xI
+        f = (x - xMin') / c
+
+        preStretchForce SWR{rodLength, springConst} = rodLength * springConst

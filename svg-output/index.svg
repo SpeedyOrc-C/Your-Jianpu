@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 1000 1000">
+	<circle cx="200.0" cy="137.5" r="6.25" />
+	<circle cx="200.0" cy="118.75" r="6.25" />
+	<circle cx="200.0" cy="100.0" r="6.25" />
+	<circle cx="200.0" cy="81.25" r="6.25" />
+	<circle cx="200.0" cy="62.5" r="6.25" />
+	<image href="lib/AccidentalDoubleFlat.svg" x="163.75" y="150.0" width="17.5" height="35.0" />
+	<image href="lib/Glyph6.svg" x="181.25" y="150.0" width="37.5" height="50.0" />
+	<circle cx="231.25" cy="175.0" r="6.25" />
+	<circle cx="250.0" cy="175.0" r="6.25" />
+	<circle cx="268.75" cy="175.0" r="6.25" />
+	<circle cx="287.5" cy="175.0" r="6.25" />
+	<circle cx="306.25" cy="175.0" r="6.25" />
+</svg>

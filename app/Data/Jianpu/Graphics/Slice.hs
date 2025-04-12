@@ -8,7 +8,7 @@ import Control.Arrow
 import Control.Monad.State
 import Data.IntervalMap (IntervalMap)
 import Data.IntervalMap qualified as IM
-import Data.Jianpu.Abstract.Types qualified as Abstract
+import Data.Jianpu.Abstract qualified as Abstract
 import Data.Jianpu.Types
 import Data.List
 import Data.Maybe

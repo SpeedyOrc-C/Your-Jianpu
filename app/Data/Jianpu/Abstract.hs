@@ -1,4 +1,4 @@
-module Data.Jianpu.Abstract.Types where
+module Data.Jianpu.Abstract where
 
 import Data.IntervalMap qualified as IM
 import Data.Jianpu.Types
@@ -6,8 +6,7 @@ import Data.Ratio
 
 newtype Music = Music [Voice] deriving (Show)
 
-data Voice
-    = Voice
+data Voice = Voice
     { entities :: [Entity]
     , spans :: IM.IntervalMap Int Span
     }

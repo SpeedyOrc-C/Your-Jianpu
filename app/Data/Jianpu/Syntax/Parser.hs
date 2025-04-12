@@ -4,7 +4,7 @@ import Text.Parsec
 
 import Control.Applicative (asum, some)
 import Control.Monad
-import Data.Jianpu.Syntax.Types
+import Data.Jianpu.Syntax
 import Data.Jianpu.Types
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.List.NonEmpty qualified as NE
@@ -142,22 +142,22 @@ pAction = do
     dot <- pDot
     return $ Action timeMultiplier dot sound
 
-pEvent :: Parser Entity
-pEvent = Event <$> (pRepeater4 <|> pMultiBarRest <|> pAction)
+pEvent :: Parser Lexeme
+pEvent = LEvent <$> (pRepeater4 <|> pMultiBarRest <|> pAction)
 
-pBarLine :: Parser Entity
+pBarLine :: Parser Lexeme
 pBarLine =
     asum
-        [ BeginEndRepeat <$ try (string ":|:")
-        , BeginRepeat <$ try (string ":|")
-        , EndRepeat <$ try (string "|:")
-        , EndSign <$ try (string "|||")
-        , DoubleBarLine <$ try (string "||")
-        , BarLine <$ try (char '|')
+        [ ColonSingleBarColon <$ try (string ":|:")
+        , SingleBarColon <$ try (string ":|")
+        , ColonSingleBar <$ try (string "|:")
+        , TripleBar <$ try (string "|||")
+        , DoubleBar <$ try (string "||")
+        , SingleBar <$ try (char '|')
         ]
 
 pArgument :: Parser Argument
-pArgument = (Int <$> pInt) <|> (String <$> pString)
+pArgument = (AInt <$> pInt) <|> (AStr <$> pString)
 
 pArguments :: Parser [Argument]
 pArguments = (start *> args <* end) <|> return []
@@ -166,23 +166,23 @@ pArguments = (start *> args <* end) <|> return []
     args = pArgument `sepBy` (pWhites *> char ',' <* pWhites)
     end = pWhites <* char '>'
 
-pTag0 :: Parser Entity
+pTag0 :: Parser Lexeme
 pTag0 = char '^' *> (Tag0 <$> pIdentifier <*> pArguments)
 
-pTag1 :: Parser Entity
+pTag1 :: Parser Lexeme
 pTag1 = char '@' *> (Tag1 <$> pIdentifier <*> pArguments)
 
 pTagId :: Parser (Maybe Int)
 pTagId = optionMaybe (char ':' *> pInt)
 
-pTagStart :: Parser Entity
+pTagStart :: Parser Lexeme
 pTagStart = char '\\' *> (TagStart <$> pIdentifier <*> pTagId <*> pArguments) <* pWhites <* char '{'
 
-pTagEnd :: Parser Entity
+pTagEnd :: Parser Lexeme
 pTagEnd = char '}' *> (TagEnd <$> optionMaybe pIdentifier <*> pTagId)
 
-pEntity :: Parser Entity
-pEntity =
+pLexeme :: Parser Lexeme
+pLexeme =
     asum
         [ pEvent
         , pBarLine
@@ -192,42 +192,17 @@ pEntity =
         , pTagEnd
         ]
 
-pVoice :: Parser Voice
-pVoice = do
-    void $ string "voice"
-    pWhites
-    void $ char '['
-    pWhites
-    entities <- pEntities
-    pWhites
-    lyrics <- many (try pLyrics <* pWhites)
-    void $ char ']'
-
-    pure $ Voice entities lyrics
-
-pEntities :: Parser [Entity]
-pEntities = do
+pLexemes :: Parser [Lexeme]
+pLexemes = do
     void $ string "note"
     pWhites
     void $ char '['
     pWhites
-    entities <- many (try pEntity <* pWhites)
+    entities <- many (try pLexeme <* pWhites)
     pWhites
     void $ char ']'
 
     pure entities
-
-pLyrics :: Parser [Maybe Syllable]
-pLyrics = do
-    void $ string "lyrics"
-    pWhites
-    void $ char '['
-    pWhites
-    l <- many (try pMaybeSyllable <* pWhites)
-    pWhites
-    void $ char ']'
-
-    pure l
 
 pMaybeSyllable :: Parser (Maybe Syllable)
 pMaybeSyllable =
@@ -250,10 +225,35 @@ pSyllableSuffix =
     optionMaybe . asum . fmap string $
         ["’", "”", ",", ".", "!", "?", "-", "\\;", ":", "，", "。", "！", "？", "、", "；", "："]
 
-pMusic :: Parser Music
-pMusic = Music <$> many (try pVoice <* pWhites)
+pLyrics :: Parser [Maybe Syllable]
+pLyrics = do
+    void $ string "lyrics"
+    pWhites
+    void $ char '['
+    pWhites
+    l <- many (try pMaybeSyllable <* pWhites)
+    pWhites
+    void $ char ']'
 
-pFile :: Parser Music
+    pure l
+
+pVoice :: Parser ([Lexeme], [[Maybe Syllable]])
+pVoice = do
+    void $ string "voice"
+    pWhites
+    void $ char '['
+    pWhites
+    entities <- pLexemes
+    pWhites
+    lyrics <- many (try pLyrics <* pWhites)
+    void $ char ']'
+
+    pure (entities, lyrics)
+
+pMusic :: Parser [([Lexeme], [[Maybe Syllable]])]
+pMusic = many (try pVoice <* pWhites)
+
+pFile :: Parser [([Lexeme], [[Maybe Syllable]])]
 pFile = pWhites *> pMusic <* eof
 
 run :: Parsec String () a -> String -> Either ParseError a

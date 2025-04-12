@@ -12,8 +12,10 @@ data Transform = Transform
     }
     deriving (Show)
 
-data BoundingBox = BBox (XY, XY) | NoBox
+data BoundingBox = BBox BBox | NoBox
     deriving (Show, Eq)
+
+type BBox = (XY, XY)
 
 data AnchorPosition
     = APCentre
@@ -78,6 +80,22 @@ instance Semigroup Transform where
 instance Monoid Transform where
     mempty :: Transform
     mempty = Transform (0, 0) (1, 1)
+
+computeBox :: XY -> Size -> AnchorPosition -> BBox
+computeBox (x, y) (sx, sy) anchorPosition =
+    ((x + dx, y + dy), (x + sx + dx, y + sy + dy))
+  where
+    dx = - (px * sx)
+    dy = - (py * sy)
+    (px, py) =
+        case anchorPosition of
+            AP xy -> xy
+            APCentre -> (0.5, 0.5)
+            APTop -> (0.5, 0)
+            APBottom -> (0.5, 1)
+            APLeft -> (0, 0.5)
+            APRight -> (1, 0.5)
+            APTopRight -> (1, 0)
 
 instance (HasSize config a) => HasSize config (LayoutTree a) where
     getSize :: (HasSize config a) => LayoutTree a -> Reader config BoundingBox

@@ -1,10 +1,10 @@
-module Data.Jianpu.Abstract.CalculateTiming where
+module Data.Jianpu.Abstract.CalculateDurations (calculateDurations) where
 
 import Control.Monad.State
 import Data.Function
 import Data.IntervalMap (IntervalMap)
 import Data.IntervalMap qualified as IM
-import Data.Jianpu.Abstract.Types
+import Data.Jianpu.Abstract
 import Data.Jianpu.Types
 import Data.Ratio
 
@@ -37,7 +37,7 @@ calculateDuration _ (_, Right event@(MultiBarRest bars)) =
         Just (a, b) -> return $ Event event ((bars * a * 4) % b)
 calculateDuration _ (_, Right event@Repeater4) =
     return $ Event event 1
-calculateDuration _ (_, Right (Pronounce {})) =
+calculateDuration _ (_, Right (Pronounce{})) =
     error "Pronunciation's duration depends on the main voice above it, this is calculated in module GenerateLyricsVoices."
 calculateDuration tuplets (index, Right event@(Action{timeMultiplier, dot})) =
     return $ Event event (tuplet * baseDuration * dotExtension)
