@@ -33,18 +33,28 @@ data LayoutTree a
 newtype LayoutFlat a = LayoutFlat [(Transform, AnchorPosition, a)]
     deriving (Show)
 
+type DrawDirective a = (Transform, AnchorPosition, a)
+
 class HasSize config a where
     getSize :: a -> Reader config Size
 
 class HasBox config a where
     getBox :: a -> Reader config BoundingBox
 
-flattenLayoutTree :: LayoutTree a -> [(Transform, AnchorPosition, a)]
+boxBoundX :: BoundingBox -> (Double, Double)
+boxBoundX NoBox = (0, 0)
+boxBoundX (BBox ((x1, _), (x2, _))) = (x1, x2)
+
+boxBoundY :: BoundingBox -> (Double, Double)
+boxBoundY NoBox = (0, 0)
+boxBoundY (BBox ((_, y1), (_, y2))) = (y1, y2)
+
+flattenLayoutTree :: LayoutTree a -> [DrawDirective a]
 flattenLayoutTree tree =
     appEndo (flattenLayoutTree' (Transform (0, 0) (1, 1)) tree) []
 
 flattenLayoutTree' ::
-    Transform -> LayoutTree a -> Endo [(Transform, AnchorPosition, a)]
+    Transform -> LayoutTree a -> Endo [DrawDirective a]
 flattenLayoutTree' transform = \case
     LTLeaf anchorAlignment object ->
         Endo ((transform, anchorAlignment, object) :)
@@ -61,6 +71,23 @@ moveUp dy = Transform (0, -dy) (1, 1)
 moveDown dy = Transform (0, dy) (1, 1)
 moveLeft dx = Transform (-dx, 0) (1, 1)
 moveRight dx = Transform (dx, 0) (1, 1)
+
+computeBox :: XY -> Size -> AnchorPosition -> BBox
+computeBox (x, y) (sx, sy) anchorPosition =
+    ((x + dx, y + dy), (x + sx + dx, y + sy + dy))
+  where
+    dx = -(px * sx)
+    dy = -(py * sy)
+    (px, py) = normAnchorPosition anchorPosition
+
+normAnchorPosition :: AnchorPosition -> XY
+normAnchorPosition (AP xy) = xy
+normAnchorPosition APCentre = (0.5, 0.5)
+normAnchorPosition APTop = (0.5, 0)
+normAnchorPosition APBottom = (0.5, 1)
+normAnchorPosition APLeft = (0, 0.5)
+normAnchorPosition APRight = (1, 0.5)
+normAnchorPosition APTopRight = (1, 0)
 
 instance Semigroup BoundingBox where
     (<>) :: BoundingBox -> BoundingBox -> BoundingBox
@@ -94,23 +121,6 @@ instance Show a => Show (LayoutTree a) where
     show (LTNode transform trees) = show transform ++ ":" ++ show trees
     show (LTLeaf anchorAlignment object) =
         show anchorAlignment ++ ":" ++ show object
-
-computeBox :: XY -> Size -> AnchorPosition -> BBox
-computeBox (x, y) (sx, sy) anchorPosition =
-    ((x + dx, y + dy), (x + sx + dx, y + sy + dy))
-  where
-    dx = -(px * sx)
-    dy = -(py * sy)
-    (px, py) = normAnchorPosition anchorPosition
-
-normAnchorPosition :: AnchorPosition -> XY
-normAnchorPosition (AP xy) = xy
-normAnchorPosition APCentre = (0.5, 0.5)
-normAnchorPosition APTop = (0.5, 0)
-normAnchorPosition APBottom = (0.5, 1)
-normAnchorPosition APLeft = (0, 0.5)
-normAnchorPosition APRight = (1, 0.5)
-normAnchorPosition APTopRight = (1, 0)
 
 instance (HasSize config a) => HasBox config (LayoutTree a) where
     getBox :: HasSize config a => LayoutTree a -> Reader config BoundingBox

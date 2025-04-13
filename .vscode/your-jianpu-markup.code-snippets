@@ -1,4 +1,22 @@
 {
+	"声部": {
+		"prefix": ["voice", "shengbu", "声部"],
+		"body": [
+			"voice [",
+			"\tnote [",
+			"\t\t$0",
+			"\t]",
+			"]",
+		],
+	},
+	"歌词": {
+		"prefix": ["lyrics", "geci", "歌词"],
+		"body": [
+			"lyrics [",
+			"\t$0",
+			"]",
+		],
+	},
 	"延长符号": {
 		"prefix": ["@fermata", "fermata", "yanchang", "延长"],
 		"body": "@fermata",

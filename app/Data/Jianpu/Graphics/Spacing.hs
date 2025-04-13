@@ -115,23 +115,16 @@ SFF stands for Spring-Force-Function.
 -}
 sff :: NonEmpty SpringWithRod -> Double -> Double
 sff springs@((springConst -> c1) :| _) x =
-    if x <= xMinInit
-        then 0
-        else sff' springs xMinInit c1
+    let xMinInit = sum (rodLength <$> springs)
+     in if x <= xMinInit
+            then 0
+            else sff' springs xMinInit c1
   where
-    xMinInit = sum (rodLength <$> springs)
-
     sff' (SWR{rodLength = xI} :| springs') xMin c =
-        case springs' of
-            [] -> f
-            ((preStretchForce -> nextSpringPreStretchForce) : _)
-                | f <= nextSpringPreStretchForce ->
-                    f
-            (spring'@(SWR{springConst = cI}) : springs'') ->
-                sff' (spring' :| springs'') xMin' (1 / (1 / c + 1 / cI))
-      where
-        xMin' = xMin - xI
-        -- f = (x - xMin') / c
-        f = (x - xMin') * c
-
-        preStretchForce SWR{rodLength, springConst} = rodLength * springConst
+        let xMin' = xMin - xI
+            f = (x - xMin') * c
+         in case springs' of
+                [] -> f
+                (SWR{..}) : _ | f <= rodLength * springConst -> f
+                (spring'@(SWR{springConst = cI}) : springs'') ->
+                    sff' (spring' :| springs'') xMin' (1 / (1 / c + 1 / cI))

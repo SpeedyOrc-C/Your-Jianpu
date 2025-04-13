@@ -2,17 +2,18 @@ module Data.Jianpu.Graphics.SVG where
 
 import Control.Monad.Reader
 import Control.Monad.Writer
-import Data.List.NonEmpty (NonEmpty (..))
 import Data.Jianpu.Graphics.Config
 import Data.Jianpu.Graphics.Render
 import Data.Jianpu.Types
 import Data.Layout
+import Data.List.NonEmpty (NonEmpty (..))
 
 type StringWriter = Writer (Endo String) ()
 
 puts :: String -> StringWriter
 puts content = tell $ Endo (content ++)
 
+putImage :: Double -> Double -> Double -> Double -> String -> StringWriter
 putImage x y width height href = do
     puts "<image href="
     puts $ show href
@@ -26,6 +27,7 @@ putImage x y width height href = do
     puts $ show $ show height
     puts " />"
 
+putCircle :: Double -> Double -> Double -> StringWriter
 putCircle cx cy r = do
     puts "<circle cx="
     puts $ show $ show cx
@@ -35,6 +37,7 @@ putCircle cx cy r = do
     puts $ show $ show r
     puts " />"
 
+putRect :: Double -> Double -> Double -> Double -> StringWriter
 putRect x y width height = do
     puts "<rect x="
     puts $ show $ show x
@@ -46,6 +49,7 @@ putRect x y width height = do
     puts $ show $ show height
     puts " />"
 
+putGlyph :: Double -> Double -> Double -> Double -> Glyph -> StringWriter
 putGlyph x y width height g = putImage x y width height $ case g of
     G0 -> "lib/Glyph0.svg"
     G1 -> "lib/Glyph1.svg"
@@ -57,6 +61,7 @@ putGlyph x y width height g = putImage x y width height $ case g of
     G7 -> "lib/Glyph7.svg"
     GX -> "lib/GlyphX.svg"
 
+putAccidental :: Double -> Double -> Double -> Double -> GAccidental -> StringWriter
 putAccidental x y width height a = putImage x y width height $ case a of
     GSharp -> "lib/AccidentalSharp.svg"
     GFlat -> "lib/AccidentalFlat.svg"
@@ -64,8 +69,8 @@ putAccidental x y width height a = putImage x y width height $ case a of
     GDoubleSharp -> "lib/AccidentalDoubleSharp.svg"
     GDoubleFlat -> "lib/AccidentalDoubleFlat.svg"
 
-getSvgString :: (Transform, AnchorPosition, RenderObject) -> Reader RenderConfig StringWriter
-getSvgString (Transform position (scaleX, scaleY), anchorPosition, object) = do
+putDrawDirective :: DrawDirective RenderObject -> Reader RenderConfig StringWriter
+putDrawDirective (Transform position (scaleX, scaleY), anchorPosition, object) = do
     (sizeX, sizeY) <- computeSize object
 
     let ((x1, y1), (x2, y2)) =
@@ -87,12 +92,30 @@ getSvgString (Transform position (scaleX, scaleY), anchorPosition, object) = do
 
         puts "\n"
 
+putSvgPrelude :: Double -> Reader RenderConfig StringWriter
+putSvgPrelude height = do
+    lineWidth <- asks lineWidth
+    pure $ do
+        puts "<svg xmlns=\"http://www.w3.org/2000/svg\""
+        puts " width="
+        puts $ show $ show lineWidth
+        puts " height="
+        puts $ show $ show height
+        puts " viewbox=\"0 0 "
+        puts $ show lineWidth
+        puts " "
+        puts $ show height
+        puts "\">\n"
+
+putSvgEnd :: Reader RenderConfig StringWriter
+putSvgEnd = pure $ puts "</svg>\n"
+
 d = writeFile "./svg-output/index.svg" $ (`appEndo` "") . execWriter $ do
     puts "<svg xmlns=\"http://www.w3.org/2000/svg\" viewbox=\"0 0 2000 2000\">\n"
 
     sequence_ . flip runReader defaultRenderConfig $ do
         tree <- drawEvent (Action Whole 5 (Note (Pitch K6 5 (Just DoubleFlat) :| []) Nothing))
         let flatTree = flattenLayoutTree (LTNode (move 200 200) [tree])
-        traverse getSvgString flatTree
+        traverse putDrawDirective flatTree
 
     puts "</svg>\n"
