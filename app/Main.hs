@@ -23,6 +23,7 @@ import System.Environment (getArgs)
 import System.Exit (exitFailure)
 import System.FilePath (splitExtension)
 import Text.Parsec (runParser)
+import Debug.Trace (traceShowId)
 
 main :: IO ()
 main = do
@@ -100,14 +101,12 @@ generateOutputFrom music = output
 
   springConstants = (1 / 0) : computeSpringConstants slices
 
-  springs = zipWith SWR springMinLengths springConstants
+  springs = traceShowId $ zipWith SWR springMinLengths springConstants
 
-  minTotalLength = sum springMinLengths
-
-  force = sff (NE.fromList springs) (1000 - minTotalLength)
+  force = traceShowId $ sff (NE.sort (NE.fromList springs)) 1000
 
   springExtensions =
-    [rodLength + force / springConst | SWR{..} <- springs]
+    [max rodLength (force / springConst) | SWR{..} <- springs]
 
   voicesBoxes = transpose slicesElementsBoxes
 

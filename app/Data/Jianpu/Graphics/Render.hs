@@ -16,6 +16,7 @@ data RenderObject
     | GAccidental GAccidental
     | Circle Double
     | Rectangle Double Double
+    | InvisibleRectangle Double Double
     deriving (Show)
 
 data Glyph = GX | G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7
@@ -36,19 +37,17 @@ instance HasSize RenderConfig RenderObject where
         pure (accidentalWidth, accidentalHeight)
     getSize (Circle r) = pure (2 * r, 2 * r)
     getSize (Rectangle sx sy) = pure (sx, sy)
+    getSize (InvisibleRectangle sx sy) = pure (sx, sy)
 
 (<+>) :: (Applicative f) => f a -> f b -> f (a, b)
 fa <+> fb = (,) <$> fa <*> fb
 
 computeSize :: RenderObject -> Reader RenderConfig Size
-computeSize Glyph{} =
-    asks getGlyphWidth <+> asks getGlyphHeight
-computeSize GAccidental{} =
-    asks getAccidentalWidth <+> asks getAccidentalHeight
-computeSize (Circle r) =
-    pure (2 * r, 2 * r)
-computeSize (Rectangle sx sy) =
-    pure (sx, sy)
+computeSize Glyph{} = asks getGlyphWidth <+> asks getGlyphHeight
+computeSize GAccidental{} = asks getAccidentalWidth <+> asks getAccidentalHeight
+computeSize (Circle r) = pure (2 * r, 2 * r)
+computeSize (Rectangle sx sy) = pure (sx, sy)
+computeSize (InvisibleRectangle sx sy) = pure (sx, sy)
 
 {-
 TODO:
@@ -60,6 +59,42 @@ drawSliceElement :: SliceElement -> Reader RenderConfig (LayoutTree RenderObject
 drawSliceElement Nothing = pure $ LTNode mempty []
 drawSliceElement (Just (Left _)) = pure $ LTNode mempty []
 drawSliceElement (Just (Right (Event{event}))) = drawEvent event
+drawSliceElement (Just (Right (Tag tag))) = drawTag tag
+
+drawTag :: Tag -> Reader RenderConfig (LayoutTree RenderObject)
+drawTag BarLine = do
+    barLineLength <- asks getBarLineLength
+    barLineWidth <- asks getBarLineWidth
+    barLineLeftPadding <- asks getBarLineLeftPadding
+    barLineRightPadding <- asks getBarLineRightPadding
+    glyphHeight <- asks getGlyphHeight
+
+    pure $
+        LTNode
+            (moveUp (glyphHeight / 2))
+            [ LTLeaf APCentre (Rectangle barLineWidth barLineLength)
+            , LTLeaf APRight (InvisibleRectangle barLineLeftPadding barLineLength)
+            , LTLeaf APLeft (InvisibleRectangle barLineRightPadding barLineLength)
+            ]
+drawTag EndSign = do
+    barLineLength <- asks getBarLineLength
+    barLineWidth <- asks getBarLineWidth
+    barLineLeftPadding <- asks getBarLineLeftPadding
+    barLineRightPadding <- asks getBarLineRightPadding
+    thickBarLineWidth <- asks getThickBarLineWidth
+    thickBarLineGap <- asks getThickBarLineGap
+    glyphHeight <- asks getGlyphHeight
+
+    pure $
+        LTNode
+            (moveUp (glyphHeight / 2))
+            [ LTNode
+                (moveLeft thickBarLineGap)
+                [LTLeaf APCentre (Rectangle barLineWidth barLineLength)]
+            , LTLeaf APLeft (Rectangle thickBarLineWidth barLineLength)
+            , LTLeaf APRight (InvisibleRectangle barLineLeftPadding barLineLength)
+            , LTLeaf APLeft (InvisibleRectangle barLineRightPadding barLineLength)
+            ]
 
 drawEvent :: Event -> Reader RenderConfig (LayoutTree RenderObject)
 drawEvent Action{..} = drawSound sound dot timeMultiplier

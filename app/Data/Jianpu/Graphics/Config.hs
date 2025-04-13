@@ -22,8 +22,13 @@ data RenderConfig = RCfg
     , beamGap'glyphHeight :: Double
     , accidentalHeight'glyphHeight :: Double
     , accidentalWidth'accidentalHeight :: Double
+    , barLineLength'glyphHeight :: Double
+    , barLineWidth'glyphWidth :: Double
+    , barLineLeftPadding'glyphWidth :: Double
+    , barLineRightPadding'glyphWidth :: Double
+    , thickBarLineWidth'barLineWidth :: Double
+    , thickBarLineGap'barLineWidth :: Double
     }
-
 
 getGlyphHeight RCfg{..} = glyphHeight'lineWidth * lineWidth
 getGlyphWidth cfg@RCfg{..} = glyphWidth'glyphHeight * getGlyphHeight cfg
@@ -37,6 +42,12 @@ getBeamHeight cfg@RCfg{..} = beamHeight'glyphHeight * getGlyphHeight cfg
 getBeamGap cfg@RCfg{..} = beamGap'glyphHeight * getGlyphHeight cfg
 getAccidentalHeight cfg@RCfg{..} = accidentalHeight'glyphHeight * getGlyphHeight cfg
 getAccidentalWidth cfg@RCfg{..} = accidentalWidth'accidentalHeight * getAccidentalHeight cfg
+getBarLineLength cfg@RCfg{..} = barLineLength'glyphHeight * getGlyphHeight cfg
+getBarLineWidth cfg@RCfg{..} = barLineWidth'glyphWidth * getGlyphWidth cfg
+getBarLineLeftPadding cfg@RCfg{..} = barLineLeftPadding'glyphWidth * getGlyphWidth cfg
+getBarLineRightPadding cfg@RCfg{..} = barLineRightPadding'glyphWidth * getGlyphWidth cfg
+getThickBarLineWidth cfg@RCfg{..} = thickBarLineWidth'barLineWidth * getBarLineWidth cfg
+getThickBarLineGap cfg@RCfg{..} = thickBarLineGap'barLineWidth * getBarLineWidth cfg
 
 defaultRenderConfig :: RenderConfig
 defaultRenderConfig =
@@ -56,4 +67,10 @@ defaultRenderConfig =
         , beamGap'glyphHeight = 1 / 10
         , accidentalHeight'glyphHeight = 7 / 10
         , accidentalWidth'accidentalHeight = 1 / 2
+        , barLineLength'glyphHeight = 3 / 2
+        , barLineWidth'glyphWidth = 1 / 10
+        , barLineLeftPadding'glyphWidth = 1
+        , barLineRightPadding'glyphWidth = 1
+        , thickBarLineWidth'barLineWidth = 3
+        , thickBarLineGap'barLineWidth = 2
         }

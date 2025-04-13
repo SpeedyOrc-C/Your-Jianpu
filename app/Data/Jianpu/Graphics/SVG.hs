@@ -51,23 +51,23 @@ putRect x y width height = do
 
 putGlyph :: Double -> Double -> Double -> Double -> Glyph -> StringWriter
 putGlyph x y width height g = putImage x y width height $ case g of
-    G0 -> "lib/Glyph0.svg"
-    G1 -> "lib/Glyph1.svg"
-    G2 -> "lib/Glyph2.svg"
-    G3 -> "lib/Glyph3.svg"
-    G4 -> "lib/Glyph4.svg"
-    G5 -> "lib/Glyph5.svg"
-    G6 -> "lib/Glyph6.svg"
-    G7 -> "lib/Glyph7.svg"
-    GX -> "lib/GlyphX.svg"
+    G0 -> "asset/Glyph0.svg"
+    G1 -> "asset/Glyph1.svg"
+    G2 -> "asset/Glyph2.svg"
+    G3 -> "asset/Glyph3.svg"
+    G4 -> "asset/Glyph4.svg"
+    G5 -> "asset/Glyph5.svg"
+    G6 -> "asset/Glyph6.svg"
+    G7 -> "asset/Glyph7.svg"
+    GX -> "asset/GlyphX.svg"
 
 putAccidental :: Double -> Double -> Double -> Double -> GAccidental -> StringWriter
 putAccidental x y width height a = putImage x y width height $ case a of
-    GSharp -> "lib/AccidentalSharp.svg"
-    GFlat -> "lib/AccidentalFlat.svg"
-    GNatural -> "lib/AccidentalNatural.svg"
-    GDoubleSharp -> "lib/AccidentalDoubleSharp.svg"
-    GDoubleFlat -> "lib/AccidentalDoubleFlat.svg"
+    GSharp -> "asset/AccidentalSharp.svg"
+    GFlat -> "asset/AccidentalFlat.svg"
+    GNatural -> "asset/AccidentalNatural.svg"
+    GDoubleSharp -> "asset/AccidentalDoubleSharp.svg"
+    GDoubleFlat -> "asset/AccidentalDoubleFlat.svg"
 
 putDrawDirective :: DrawDirective RenderObject -> Reader RenderConfig StringWriter
 putDrawDirective (Transform position (scaleX, scaleY), anchorPosition, object) = do
@@ -89,6 +89,7 @@ putDrawDirective (Transform position (scaleX, scaleY), anchorPosition, object) =
             Rectangle width' height' -> putRect x y width' height'
             Glyph g -> putGlyph x y width height g
             GAccidental a -> putAccidental x y width height a
+            InvisibleRectangle {} -> tell mempty
 
         puts "\n"
 
@@ -109,13 +110,3 @@ putSvgPrelude height = do
 
 putSvgEnd :: Reader RenderConfig StringWriter
 putSvgEnd = pure $ puts "</svg>\n"
-
-d = writeFile "./svg-output/index.svg" $ (`appEndo` "") . execWriter $ do
-    puts "<svg xmlns=\"http://www.w3.org/2000/svg\" viewbox=\"0 0 2000 2000\">\n"
-
-    sequence_ . flip runReader defaultRenderConfig $ do
-        tree <- drawEvent (Action Whole 5 (Note (Pitch K6 5 (Just DoubleFlat) :| []) Nothing))
-        let flatTree = flattenLayoutTree (LTNode (move 200 200) [tree])
-        traverse putDrawDirective flatTree
-
-    puts "</svg>\n"

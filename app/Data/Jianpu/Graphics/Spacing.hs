@@ -11,11 +11,11 @@ Darmstadt, 2002.
 https://guido.grame.fr/papers/kai_renz_diss.pdf
 -}
 
-import Control.Monad.State
+import Control.Monad.State ( MonadState(state), evalState, State )
 import Data.Jianpu.Abstract qualified as Abstract
-import Data.Jianpu.Graphics
-import Data.Jianpu.Types
-import Data.List
+import Data.Jianpu.Graphics ( ContEvent(..), Slice(..) )
+import Data.Jianpu.Types ( Duration, doubleFromDuration )
+import Data.List ( groupBy )
 import Data.List.NonEmpty (NonEmpty (..))
 
 -- TODO: Using Gourlay's for now, implement improved algorithm later...
@@ -105,26 +105,38 @@ data SpringWithRod = SWR
     { rodLength :: Double
     , springConst :: Double
     }
-    deriving (Show, Eq)
+    deriving (Eq)
 
 {- |
 Given a string of springs with rods and its desired length,
 returns the force needed to stretch them to that length.
+The springs must be sorted in ascending order of their minimum extends.
 
 SFF stands for Spring-Force-Function.
 -}
 sff :: NonEmpty SpringWithRod -> Double -> Double
 sff springs@((springConst -> c1) :| _) x =
-    let xMinInit = sum (rodLength <$> springs)
-     in if x <= xMinInit
+    let xMin = sum (rodLength <$> springs)
+     in if x <= xMin
             then 0
-            else sff' springs xMinInit c1
+            else sff' springs xMin c1
   where
-    sff' (SWR{rodLength = xI} :| springs') xMin c =
-        let xMin' = xMin - xI
+    sff' (SWR{rodLength = xi} :| springs') xMin c =
+        let xMin' = xMin - xi
             f = (x - xMin') * c
          in case springs' of
                 [] -> f
-                (SWR{..}) : _ | f <= rodLength * springConst -> f
-                (spring'@(SWR{springConst = cI}) : springs'') ->
-                    sff' (spring' :| springs'') xMin' (1 / (1 / c + 1 / cI))
+                SWR{..} : _ | f <= rodLength * springConst -> f
+                spring'@SWR{springConst = ci} : springs'' ->
+                    sff' (spring' :| springs'') xMin' (1 / (1 / c + 1 / ci))
+
+instance Show SpringWithRod where
+    show :: SpringWithRod -> String
+    show SWR{..} = show rodLength ++ "~" ++ show springConst
+
+instance Ord SpringWithRod where
+    compare :: SpringWithRod -> SpringWithRod -> Ordering
+    compare
+        (SWR{springConst = c1, rodLength = x1})
+        (SWR{springConst = c2, rodLength = x2}) =
+            compare (c1 * x1) (c2 * x2)

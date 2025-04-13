@@ -1,4 +1,4 @@
-module Data.Jianpu.Abstract.CalculateDurations (calculateDurations) where
+module Data.Jianpu.Syntax.CalculateDurations (calculateDurations) where
 
 import Control.Monad.State
 import Data.Function
