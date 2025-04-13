@@ -12,18 +12,20 @@ synopsis: Render a Jianpu from a specialised markup language.
 description:
     Render a Jianpu, a kind of musical notation popular in China,
     from a specialised markup language inspired by GUIDO.
-license:            GPL-3.0-or-later
-license-file:       LICENSE
-author:             陈湛明
-maintainer:         chenzhanming04@foxmail.com
+license:        GPL-3.0-or-later
+license-file:   LICENSE
+author:         陈湛明
+maintainer:     chenzhanming04@foxmail.com
 
-category:           Graphics
-build-type:         Simple
+category:       Graphics
+build-type:     Simple
 
-extra-doc-files:    CHANGELOG.md
+extra-doc-files: CHANGELOG.md
 
 -- Extra source files to be distributed with the package, such as examples, or a tutorial module.
 -- extra-source-files:
+
+data-files: asset/*.svg
 
 common warnings
     ghc-options: -Wall
@@ -35,26 +37,27 @@ executable yjpc
     default-language: GHC2021
 
     other-modules:
-        Data.Jianpu.Types,
-        Data.Jianpu.Syntax,
-        Data.Jianpu.Syntax.Parser,
-        Data.Jianpu.Syntax.ExtractTagSpans,
-        Data.Jianpu.Syntax.Document,
-        Data.Jianpu.Document,
-        Data.Jianpu.Document.Abstract,
-        Data.Jianpu.Abstract,
-        Data.Jianpu.Abstract.Error,
-        Data.Jianpu.Abstract.CalculateDurations,
-        Data.Jianpu.Abstract.GenerateLyricsVoices,
-        Data.Jianpu.Graphics,
-        Data.Jianpu.Graphics.Slice,
-        Data.Jianpu.Graphics.Spacing,
-        Data.Jianpu.Graphics.Render,
-        Data.Jianpu.Graphics.Config,
-        Data.Jianpu.Graphics.StringMetrics,
-        Data.Jianpu.Graphics.SVG,
-        Data.Layout,
-        Data.List.Utils
+        Paths_Your_Jianpu_Renderer
+        , Data.Jianpu.Types
+        , Data.Jianpu.Syntax
+        , Data.Jianpu.Syntax.Parser
+        , Data.Jianpu.Syntax.ExtractTagSpans
+        , Data.Jianpu.Syntax.Document
+        , Data.Jianpu.Document
+        , Data.Jianpu.Document.Abstract
+        , Data.Jianpu.Abstract
+        , Data.Jianpu.Abstract.Error
+        , Data.Jianpu.Abstract.CalculateDurations
+        , Data.Jianpu.Abstract.GenerateLyricsVoices
+        , Data.Jianpu.Graphics
+        , Data.Jianpu.Graphics.Slice
+        , Data.Jianpu.Graphics.Spacing
+        , Data.Jianpu.Graphics.Render
+        , Data.Jianpu.Graphics.Config
+        , Data.Jianpu.Graphics.StringMetrics
+        , Data.Jianpu.Graphics.SVG
+        , Data.Layout
+        , Data.List.Utils
 
     build-depends:    base ^>=4.17.2.1
         , mtl
@@ -64,6 +67,7 @@ executable yjpc
         , IntervalMap
         , process
         , directory
+        , filepath
 
     default-extensions:
           LambdaCase
