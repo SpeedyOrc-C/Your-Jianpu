@@ -143,7 +143,7 @@ pAction = do
     return $ Action timeMultiplier dot sound
 
 pEvent :: Parser Lexeme
-pEvent = LEvent <$> (pRepeater4 <|> pMultiBarRest <|> pAction)
+pEvent = LEvent <$> (pRepeater4 <|> try pMultiBarRest <|> pAction)
 
 pBarLine :: Parser Lexeme
 pBarLine =
