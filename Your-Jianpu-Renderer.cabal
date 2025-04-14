@@ -51,6 +51,7 @@ executable yjpc
         , Data.Jianpu.Abstract
         , Data.Jianpu.Abstract.Error
         , Data.Jianpu.Abstract.GenerateLyricsVoices
+        , Data.Jianpu.Abstract.RenderTree
         , Data.Jianpu.Graphics
         , Data.Jianpu.Graphics.Slice
         , Data.Jianpu.Graphics.Spacing

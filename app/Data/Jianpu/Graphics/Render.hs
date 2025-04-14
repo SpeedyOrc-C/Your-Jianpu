@@ -11,11 +11,15 @@ import Data.List.NonEmpty (NonEmpty (..))
 import Data.Maybe
 import Debug.Trace (trace, traceM, traceShow, traceShowId, traceShowM)
 
+data AlignText = ATLeft | ATRight | ATCentre
+    deriving (Show, Eq)
+
 data RenderObject
     = Glyph Glyph
     | GAccidental GAccidental
     | Circle Double
     | Rectangle Double Double
+    | Text Double AlignText String
     | InvisibleRectangle Double Double
     deriving (Show)
 
@@ -38,16 +42,10 @@ instance HasSize RenderConfig RenderObject where
     getSize (Circle r) = pure (2 * r, 2 * r)
     getSize (Rectangle sx sy) = pure (sx, sy)
     getSize (InvisibleRectangle sx sy) = pure (sx, sy)
+    getSize (Text size _ _) = pure (0, size)
 
 (<+>) :: (Applicative f) => f a -> f b -> f (a, b)
 fa <+> fb = (,) <$> fa <*> fb
-
-computeSize :: RenderObject -> Reader RenderConfig Size
-computeSize Glyph{} = asks getGlyphWidth <+> asks getGlyphHeight
-computeSize GAccidental{} = asks getAccidentalWidth <+> asks getAccidentalHeight
-computeSize (Circle r) = pure (2 * r, 2 * r)
-computeSize (Rectangle sx sy) = pure (sx, sy)
-computeSize (InvisibleRectangle sx sy) = pure (sx, sy)
 
 {-
 TODO:
@@ -107,6 +105,10 @@ drawEvent Repeater4 = do
         LTNode
             (moveUp (glyphHeight / 2))
             [LTLeaf APCentre (Rectangle repeater4Width repeater4Height)]
+drawEvent (Pronounce Nothing) = pure $ LTNode mempty []
+drawEvent (Pronounce (Just Syllable{..})) = do
+    glyphHeight <- asks getGlyphHeight
+    pure $ LTLeaf APBottom (Text glyphHeight ATCentre content)
 
 drawSound ::
     Sound ->

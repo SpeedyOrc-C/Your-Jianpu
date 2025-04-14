@@ -52,10 +52,10 @@ getThickBarLineGap cfg@RCfg{..} = thickBarLineGap'barLineWidth * getBarLineWidth
 defaultRenderConfig :: RenderConfig
 defaultRenderConfig =
     RCfg
-        { pageHeight = 1414.2
-        , lineWidth = 1000
+        { pageHeight = 2828.4
+        , lineWidth = 2000
         , lineGap = 50
-        , glyphHeight'lineWidth = 1 / 20
+        , glyphHeight'lineWidth = 1 / 50
         , glyphWidth'glyphHeight = 3 / 4
         , repeater4Height'glyphHeight = 1 / 8
         , repeater4Width'glyphWidth = 9 / 10
