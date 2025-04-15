@@ -2,12 +2,18 @@
 
 module Data.Jianpu.Graphics.Config where
 
-{-|
+import Control.Monad.Reader (Reader)
+import Data.Jianpu.Types (TimeSignature)
+
+type RenderContext = Reader RenderConfig
+
+{- |
 Names with an apostrophe are ratios.
 e.g. abc'def has the value abc / def.
 -}
 data RenderConfig = RCfg
-    { pageHeight :: Double
+    { -- Graphical config
+      pageHeight :: Double
     , lineWidth :: Double
     , lineGap :: Double
     , glyphHeight'lineWidth :: Double
@@ -28,6 +34,8 @@ data RenderConfig = RCfg
     , barLineRightPadding'glyphWidth :: Double
     , thickBarLineWidth'barLineWidth :: Double
     , thickBarLineGap'barLineWidth :: Double
+    , -- Logical config
+      initialTimeSignature :: TimeSignature
     }
 
 getGlyphHeight RCfg{..} = glyphHeight'lineWidth * lineWidth

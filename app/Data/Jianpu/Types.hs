@@ -2,10 +2,11 @@ module Data.Jianpu.Types where
 
 import Data.List (intercalate)
 import Data.List.NonEmpty (NonEmpty (..))
-import Data.Maybe
-import Data.Ratio
+import Data.Maybe ( fromMaybe )
+import Data.Ratio ( Ratio, denominator, numerator )
 
 type Duration = Ratio Int
+type TimeSignature = (Int, Int)
 
 data Event
     = Repeater4

@@ -1,19 +1,18 @@
 module Data.Jianpu.Abstract.GenerateLyricsVoices where
 
-import Data.IntervalMap qualified as IM
-import Data.Jianpu.Abstract
-import Data.Jianpu.Abstract.Error
-import Data.Jianpu.Syntax qualified as Syntax
-import Data.Jianpu.Types
-import Data.Maybe
+import Control.Monad (zipWithM)
+import Data.Jianpu.Abstract (Entity (Event, duration))
+import Data.Jianpu.Abstract.Error (AbstractError (..))
+import Data.Jianpu.Types (Event (Pronounce), Syllable)
+import Data.Maybe (mapMaybe)
 
 {-
 Generate the boilerplate lyrics voices directly from the melody voice and
 their notes' durations.
 -}
-generateLyricsVoices :: [[[Maybe Syllable]]] -> [[Entity]] -> [Either [AbstractError] [[Entity]]]
+generateLyricsVoices :: [[[Maybe Syllable]]] -> [[Entity]] -> Either [AbstractError] [[[Entity]]]
 generateLyricsVoices lyricsLinesGroups entitiesGroups =
-    zipWith generateLyricsVoices' entitiesGroups lyricsLinesGroups
+    zipWithM generateLyricsVoices' entitiesGroups lyricsLinesGroups
 
 generateLyricsVoices' :: [Entity] -> [[Maybe Syllable]] -> Either [AbstractError] [[Entity]]
 generateLyricsVoices' voice lyricsLines =

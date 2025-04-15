@@ -87,7 +87,7 @@ putAccidental x y width height a = putImage x y width height $ case a of
     GDoubleSharp -> "asset/AccidentalDoubleSharp.svg"
     GDoubleFlat -> "asset/AccidentalDoubleFlat.svg"
 
-putDrawDirective :: DrawDirective RenderObject -> Reader RenderConfig StringWriter
+putDrawDirective :: DrawDirective RenderObject -> RenderContext StringWriter
 putDrawDirective (Transform position (scaleX, scaleY), anchorPosition, object) = do
     (sizeX, sizeY) <- getSize object
 
@@ -112,7 +112,7 @@ putDrawDirective (Transform position (scaleX, scaleY), anchorPosition, object) =
 
         puts "\n"
 
-putSvgPrelude :: Double -> Reader RenderConfig StringWriter
+putSvgPrelude :: Double -> RenderContext StringWriter
 putSvgPrelude height = do
     lineWidth <- asks lineWidth
     pure $ do
@@ -128,5 +128,5 @@ putSvgPrelude height = do
         puts $ show height
         puts "\">\n"
 
-putSvgEnd :: Reader RenderConfig StringWriter
+putSvgEnd :: RenderContext StringWriter
 putSvgEnd = pure $ puts "</svg>\n"

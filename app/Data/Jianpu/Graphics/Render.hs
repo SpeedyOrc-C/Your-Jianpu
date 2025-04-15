@@ -30,7 +30,7 @@ data GAccidental = GNatural | GSharp | GFlat | GDoubleSharp | GDoubleFlat
     deriving (Show)
 
 instance HasSize RenderConfig RenderObject where
-    getSize :: RenderObject -> Reader RenderConfig Size
+    getSize :: RenderObject -> RenderContext Size
     getSize Glyph{} = do
         glyphHeight <- asks getGlyphHeight
         glyphWidth <- asks getGlyphWidth
@@ -53,13 +53,13 @@ Need more information about vertical spacing of other notes
 when there are ties inside chords.
 Add them as new parameters in the future!
 -}
-drawSliceElement :: SliceElement -> Reader RenderConfig (LayoutTree RenderObject)
+drawSliceElement :: SliceElement -> RenderContext (LayoutTree RenderObject)
 drawSliceElement Nothing = pure $ LTNode mempty []
 drawSliceElement (Just (Left _)) = pure $ LTNode mempty []
 drawSliceElement (Just (Right (Event{event}))) = drawEvent event
 drawSliceElement (Just (Right (Tag tag))) = drawTag tag
 
-drawTag :: Tag -> Reader RenderConfig (LayoutTree RenderObject)
+drawTag :: Tag -> RenderContext (LayoutTree RenderObject)
 drawTag BarLine = do
     barLineLength <- asks getBarLineLength
     barLineWidth <- asks getBarLineWidth
@@ -94,7 +94,7 @@ drawTag EndSign = do
             , LTLeaf APLeft (InvisibleRectangle barLineRightPadding barLineLength)
             ]
 
-drawEvent :: Event -> Reader RenderConfig (LayoutTree RenderObject)
+drawEvent :: Event -> RenderContext (LayoutTree RenderObject)
 drawEvent Action{..} = drawSound sound dot timeMultiplier
 drawEvent Repeater4 = do
     glyphHeight <- asks getGlyphHeight
@@ -114,7 +114,7 @@ drawSound ::
     Sound ->
     Int ->
     TimeMultiplier ->
-    Reader RenderConfig (LayoutTree RenderObject)
+    RenderContext (LayoutTree RenderObject)
 drawSound Rest dot _ = do
     dotRadius <- asks getDotRadius
     dotGap <- asks getDotRadius

@@ -10,7 +10,7 @@ abstractFromDocument (DMusic syntaxVoices) = do
     let spansGroups = dSpans <$> syntaxVoices
     let normalVoices = zipWith Voice entitiesGroups spansGroups
 
-    lyricsLinesGroups <- sequence $ generateLyricsVoices (lyrics <$> syntaxVoices) entitiesGroups
+    lyricsLinesGroups <- generateLyricsVoices (lyrics <$> syntaxVoices) entitiesGroups
 
     let lyricsVoicesGroups = fmap (fmap (`Voice` mempty)) lyricsLinesGroups
 

@@ -65,7 +65,7 @@ generateOutputFrom music = output
  where
   config = defaultRenderConfig
 
-  voicesTrees = renderMusic config music
+  voicesTrees = runReader (renderMusic music) config
 
   flattenedTree = flattenLayoutTree voicesTrees
 

@@ -48,6 +48,7 @@ executable yjpc
         , Data.Jianpu.Syntax.Document
         , Data.Jianpu.Document
         , Data.Jianpu.Document.Abstract
+        , Data.Jianpu.Document.Beaming
         , Data.Jianpu.Abstract
         , Data.Jianpu.Abstract.Error
         , Data.Jianpu.Abstract.GenerateLyricsVoices

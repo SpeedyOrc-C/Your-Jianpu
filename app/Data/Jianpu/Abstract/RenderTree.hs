@@ -1,10 +1,10 @@
-module Data.Jianpu.Abstract.RenderTree where
+module Data.Jianpu.Abstract.RenderTree (renderMusic) where
 
 import Control.Monad ((>=>))
-import Control.Monad.Reader (asks, runReader)
+import Control.Monad.Reader (asks)
 import Data.Jianpu.Abstract (Music)
 import Data.Jianpu.Graphics (Slice (elements), Slices (..))
-import Data.Jianpu.Graphics.Config (RenderConfig (lineGap))
+import Data.Jianpu.Graphics.Config (RenderConfig (lineGap), RenderContext)
 import Data.Jianpu.Graphics.Render (RenderObject, drawSliceElement)
 import Data.Jianpu.Graphics.Slice (sliceMusic)
 import Data.Jianpu.Graphics.Spacing (SpringWithRod (..), computeSpringConstants, sff)
@@ -12,63 +12,63 @@ import Data.Layout (HasBox (getBox), LayoutTree (..), boxBoundX, boxBoundY, move
 import Data.List (transpose)
 import Data.List.NonEmpty qualified as NE
 
-renderMusic :: RenderConfig -> Music -> LayoutTree RenderObject
-renderMusic config music =
-    LTNode mempty $ do
-        (voiceElements, voiceOffsetY) <- zip voicesElements voicesOffsetsY
-        pure $ LTNode (moveDown voiceOffsetY) $ do
-            (voiceElement, sliceOffsetX) <- zip voiceElements slicesOffsetX
-            pure $ LTNode (moveRight sliceOffsetX) [voiceElement]
-  where
-    Slices slices spanGroups = sliceMusic music
+renderMusic :: Music -> RenderContext (LayoutTree RenderObject)
+renderMusic music = do
+    let Slices slices spanGroups = sliceMusic music
 
-    slicesElementsBoxes' = mapM (mapM (drawSliceElement >=> getBox) . elements) slices
-    slicesElementsBoxes = runReader slicesElementsBoxes' config
+    let slicesElementsBoxes' = mapM (mapM (drawSliceElement >=> getBox) . elements) slices
 
-    slicesElementsBoundsY = map (map boxBoundX) slicesElementsBoxes
+    slicesElementsBoxes <- slicesElementsBoxes'
 
-    springMinLengths =
-        maximum (negativeSize <$> head slicesElementsBoundsY)
-            : zipWith
-                ( \slice1 slice2 ->
-                    maximum $
-                        zipWith
-                            (+)
-                            (positiveSize <$> slice1)
-                            (negativeSize <$> slice2)
-                )
-                slicesElementsBoundsY
-                (tail slicesElementsBoundsY)
-            ++ [maximum (positiveSize <$> last slicesElementsBoundsY)]
+    let slicesElementsBoundsY = map (map boxBoundX) slicesElementsBoxes
 
-    springConstants = (1 / 0) : computeSpringConstants slices
+    let springMinLengths =
+            maximum (negativeSize <$> head slicesElementsBoundsY)
+                : zipWith
+                    ( \slice1 slice2 ->
+                        maximum $
+                            zipWith
+                                (+)
+                                (positiveSize <$> slice1)
+                                (negativeSize <$> slice2)
+                    )
+                    slicesElementsBoundsY
+                    (tail slicesElementsBoundsY)
+                ++ [maximum (positiveSize <$> last slicesElementsBoundsY)]
 
-    springs = zipWith SWR springMinLengths springConstants
+    let springConstants = (1 / 0) : computeSpringConstants slices
 
-    force = sff (NE.sort (NE.fromList springs)) 2000
+    let springs = zipWith SWR springMinLengths springConstants
 
-    springExtensions =
-        [max rodLength (force / springConst) | SWR{..} <- springs]
+    let force = sff (NE.sort (NE.fromList springs)) 2000
 
-    voicesBoxes = transpose slicesElementsBoxes
+    let springExtensions =
+            [max rodLength (force / springConst) | SWR{..} <- springs]
 
-    voicesBoundsY = boxBoundY . mconcat <$> voicesBoxes
+    let voicesBoxes = transpose slicesElementsBoxes
 
-    slicesElements' = mapM (mapM drawSliceElement . elements) slices
-    slicesElements = runReader slicesElements' config
+    let voicesBoundsY = boxBoundY . mconcat <$> voicesBoxes
 
-    voicesElements = transpose slicesElements
+    slicesElements <- mapM (mapM drawSliceElement . elements) slices
 
-    slicesOffsetX = init $ scanl1 (+) springExtensions
+    let voicesElements = transpose slicesElements
 
-    voicesOffsetsY = scanl1 (+) . (`runReader` config) $ do
-        lineGap <- asks lineGap
-        pure $
+    let slicesOffsetX = init $ scanl1 (+) springExtensions
+
+    lineGap <- asks lineGap
+
+    let voicesOffsetsY = scanl1 (+) $ do
             negativeSize (head voicesBoundsY)
                 : zipWith
                     (\bottom top -> bottom + lineGap + top)
                     (positiveSize <$> voicesBoundsY)
                     (negativeSize <$> tail voicesBoundsY)
+
+    pure $ LTNode mempty $ do
+        (voiceElements, voiceOffsetY) <- zip voicesElements voicesOffsetsY
+        pure $ LTNode (moveDown voiceOffsetY) $ do
+            (voiceElement, sliceOffsetX) <- zip voiceElements slicesOffsetX
+            pure $ LTNode (moveRight sliceOffsetX) [voiceElement]
 
 negativeSize :: (Double, Double) -> Double
 negativeSize (x, _) = max 0 (-x)

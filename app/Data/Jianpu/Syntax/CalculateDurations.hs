@@ -9,7 +9,6 @@ import Data.Jianpu.Types
 import Data.Ratio
 
 type TupletMultiplier = Ratio Int
-type TimeSignature = (Int, Int)
 
 calculateDurations :: (IntervalMap Int Span, [Either Tag Event]) -> [Entity]
 calculateDurations (spans, entities) =
