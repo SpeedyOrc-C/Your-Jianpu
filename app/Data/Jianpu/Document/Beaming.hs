@@ -1,12 +1,13 @@
 module Data.Jianpu.Document.Beaming (addBeams) where
 
-import Control.Monad.Reader (asks)
-import Control.Monad.State (MonadState (..), State, evalState)
+import Control.Monad.Reader (MonadTrans (lift), asks)
+import Control.Monad.State (MonadState (..), StateT, evalStateT)
 import Data.IntervalMap (Interval (ClosedInterval))
 import Data.IntervalMap qualified as IM
 import Data.Jianpu.Abstract (Entity (Event, Tag, duration, event), Span (Beam), Tag (TimeSignature))
+import Data.Jianpu.Abstract.Error (HasError)
 import Data.Jianpu.Document (DocumentVoice (..))
-import Data.Jianpu.Graphics.Config (RenderConfig (initialTimeSignature), RenderContext)
+import Data.Jianpu.Graphics.Config (RenderConfig (initialTimeSignature), RenderContextT)
 import Data.Jianpu.Types (Duration, Event (Action), TimeSignature)
 import Data.Ratio ((%))
 
@@ -17,28 +18,33 @@ data BeamingState = BS
     }
     deriving (Show)
 
-addBeams :: DocumentVoice -> RenderContext DocumentVoice
+addBeams :: DocumentVoice -> RenderContextT HasError DocumentVoice
 addBeams voice@DVoice{..} = do
     initialTimeSignature <- asks initialTimeSignature
 
-    let beamSpans =
-            evalState (addBeams' (zip [0 ..] dEntities)) $
-                BS
-                    { nowDuration = 0
-                    , spanLeftIndex = 0
-                    , nowMaxDuration = groupDurationOf initialTimeSignature
-                    }
+    beamSpans <- lift $ do
+        initialGroupDuration <- groupDurationOf initialTimeSignature
 
-    pure voice{dSpans = dSpans <> IM.fromList beamSpans}
+        evalStateT
+            (addBeams' (zip [0 ..] dEntities))
+            BS
+                { nowDuration = 0
+                , spanLeftIndex = 0
+                , nowMaxDuration = initialGroupDuration
+                }
 
-addBeams' :: [(Int, Entity)] -> State BeamingState [(Interval Int, Span)]
+    pure $ voice{dSpans = dSpans <> IM.fromList beamSpans}
+
+addBeams' :: [(Int, Entity)] -> StateT BeamingState HasError [(Interval Int, Span)]
 addBeams' [] = pure []
 addBeams' ((index, Tag (TimeSignature a b)) : es) = do
+    groupDuration <- lift $ groupDurationOf (a, b)
+
     put
         BS
             { nowDuration = 0
             , spanLeftIndex = index + 1
-            , nowMaxDuration = groupDurationOf (a, b)
+            , nowMaxDuration = groupDuration
             }
     addBeams' es
 addBeams' ((index, Event{duration, event = Action{}}) : es) = do
@@ -62,12 +68,12 @@ addBeams' ((index, _) : es) = do
     put BS{nowDuration = 0, spanLeftIndex = index + 1, ..}
     addBeams' es
 
-groupDurationOf :: TimeSignature -> Duration
-groupDurationOf (2, 4) = 1
-groupDurationOf (3, 4) = 1
-groupDurationOf (4, 4) = 2
-groupDurationOf (3, 8) = 3 % 2
-groupDurationOf (6, 8) = 3 % 2
-groupDurationOf (9, 8) = 3 % 2
-groupDurationOf (12, 8) = 3 % 2
-groupDurationOf _ = error "Unsupported time signature"
+groupDurationOf :: TimeSignature -> HasError Duration
+groupDurationOf (2, 4) = pure 1
+groupDurationOf (3, 4) = pure 1
+groupDurationOf (4, 4) = pure 2
+groupDurationOf (3, 8) = pure (3 % 2)
+groupDurationOf (6, 8) = pure (3 % 2)
+groupDurationOf (9, 8) = pure (3 % 2)
+groupDurationOf (12, 8) = pure (3 % 2)
+groupDurationOf _ = Left undefined

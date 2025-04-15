@@ -1,22 +1,23 @@
-module Data.Jianpu.Abstract.RenderTree (renderMusic) where
+module Data.Jianpu.Abstract.RenderTree (voicesTreeFromMusic) where
 
 import Control.Monad ((>=>))
 import Control.Monad.Reader (asks)
 import Data.Jianpu.Abstract (Music)
 import Data.Jianpu.Graphics (Slice (elements), Slices (..))
-import Data.Jianpu.Graphics.Config (RenderConfig (lineGap), RenderContext)
+import Data.Jianpu.Graphics.Config (RenderConfig (lineGap, lineWidth), RenderContextT, fill)
 import Data.Jianpu.Graphics.Render (RenderObject, drawSliceElement)
 import Data.Jianpu.Graphics.Slice (sliceMusic)
 import Data.Jianpu.Graphics.Spacing (SpringWithRod (..), computeSpringConstants, sff)
 import Data.Layout (HasBox (getBox), LayoutTree (..), boxBoundX, boxBoundY, moveDown, moveRight)
 import Data.List (transpose)
 import Data.List.NonEmpty qualified as NE
+import Data.Jianpu.Abstract.Error (HasError)
 
-renderMusic :: Music -> RenderContext (LayoutTree RenderObject)
-renderMusic music = do
+voicesTreeFromMusic :: Music -> RenderContextT HasError (LayoutTree RenderObject)
+voicesTreeFromMusic music = do
     let Slices slices spanGroups = sliceMusic music
 
-    let slicesElementsBoxes' = mapM (mapM (drawSliceElement >=> getBox) . elements) slices
+    let slicesElementsBoxes' = mapM (mapM (drawSliceElement >=> (fill . getBox)) . elements) slices
 
     slicesElementsBoxes <- slicesElementsBoxes'
 
@@ -40,7 +41,9 @@ renderMusic music = do
 
     let springs = zipWith SWR springMinLengths springConstants
 
-    let force = sff (NE.sort (NE.fromList springs)) 2000
+    lineWidth <- asks lineWidth
+
+    let force = sff (NE.sort (NE.fromList springs)) lineWidth
 
     let springExtensions =
             [max rodLength (force / springConst) | SWR{..} <- springs]

@@ -2,10 +2,14 @@
 
 module Data.Jianpu.Graphics.Config where
 
-import Control.Monad.Reader (Reader)
+import Control.Monad.Reader (Reader, ReaderT, MonadReader (reader), runReader)
 import Data.Jianpu.Types (TimeSignature)
 
 type RenderContext = Reader RenderConfig
+type RenderContextT m = ReaderT RenderConfig m
+
+fill :: Monad m => Reader r a -> ReaderT r m a
+fill = reader . runReader
 
 {- |
 Names with an apostrophe are ratios.
@@ -61,8 +65,8 @@ defaultRenderConfig :: RenderConfig
 defaultRenderConfig =
     RCfg
         { pageHeight = 2828.4
-        , lineWidth = 2000
-        , lineGap = 50
+        , lineWidth = 1500
+        , lineGap = 30
         , glyphHeight'lineWidth = 1 / 50
         , glyphWidth'glyphHeight = 3 / 4
         , repeater4Height'glyphHeight = 1 / 8
@@ -81,4 +85,5 @@ defaultRenderConfig =
         , barLineRightPadding'glyphWidth = 1
         , thickBarLineWidth'barLineWidth = 3
         , thickBarLineGap'barLineWidth = 2
+        , initialTimeSignature = (4, 4)
         }

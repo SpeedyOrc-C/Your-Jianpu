@@ -1,7 +1,11 @@
 module Data.Jianpu.Abstract.Error where
+import Text.Parsec (ParseError)
+
+type HasError = Either [AbstractError]
 
 data AbstractError
-    = InconsistentSyllableCount Int
+    = MarkupSyntaxError ParseError
+    | InconsistentSyllableCount Int
     | ErrorArgsTimeSignature
     | ErrorArgsFermata
     | ErrorArgsBeam

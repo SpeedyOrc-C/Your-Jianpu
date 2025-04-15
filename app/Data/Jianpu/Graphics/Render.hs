@@ -10,6 +10,7 @@ import Data.Layout
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Maybe
 import Debug.Trace (trace, traceM, traceShow, traceShowId, traceShowM)
+import Data.Jianpu.Abstract.Error (HasError)
 
 data AlignText = ATLeft | ATRight | ATCentre
     deriving (Show, Eq)
@@ -53,13 +54,13 @@ Need more information about vertical spacing of other notes
 when there are ties inside chords.
 Add them as new parameters in the future!
 -}
-drawSliceElement :: SliceElement -> RenderContext (LayoutTree RenderObject)
+drawSliceElement :: SliceElement -> RenderContextT HasError (LayoutTree RenderObject)
 drawSliceElement Nothing = pure $ LTNode mempty []
 drawSliceElement (Just (Left _)) = pure $ LTNode mempty []
 drawSliceElement (Just (Right (Event{event}))) = drawEvent event
 drawSliceElement (Just (Right (Tag tag))) = drawTag tag
 
-drawTag :: Tag -> RenderContext (LayoutTree RenderObject)
+drawTag :: Tag -> RenderContextT HasError (LayoutTree RenderObject)
 drawTag BarLine = do
     barLineLength <- asks getBarLineLength
     barLineWidth <- asks getBarLineWidth
@@ -93,8 +94,9 @@ drawTag EndSign = do
             , LTLeaf APRight (InvisibleRectangle barLineLeftPadding barLineLength)
             , LTLeaf APLeft (InvisibleRectangle barLineRightPadding barLineLength)
             ]
+drawTag TimeSignature {} = pure $ LTNode mempty []
 
-drawEvent :: Event -> RenderContext (LayoutTree RenderObject)
+drawEvent :: Event -> RenderContextT HasError (LayoutTree RenderObject)
 drawEvent Action{..} = drawSound sound dot timeMultiplier
 drawEvent Repeater4 = do
     glyphHeight <- asks getGlyphHeight
@@ -114,7 +116,7 @@ drawSound ::
     Sound ->
     Int ->
     TimeMultiplier ->
-    RenderContext (LayoutTree RenderObject)
+    RenderContextT HasError (LayoutTree RenderObject)
 drawSound Rest dot _ = do
     dotRadius <- asks getDotRadius
     dotGap <- asks getDotRadius

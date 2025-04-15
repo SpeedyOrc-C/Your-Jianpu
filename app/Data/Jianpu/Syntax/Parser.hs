@@ -4,6 +4,7 @@ import Text.Parsec
 
 import Control.Applicative (asum, some)
 import Control.Monad
+import Data.Jianpu.Abstract.Error (AbstractError (MarkupSyntaxError), HasError)
 import Data.Jianpu.Syntax
 import Data.Jianpu.Types
 import Data.List.NonEmpty (NonEmpty (..))
@@ -255,6 +256,12 @@ pMusic = many (try pVoice <* pWhites)
 
 pFile :: Parser [([Lexeme], [[Maybe Syllable]])]
 pFile = pWhites *> pMusic <* eof
+
+markupToDraft :: FilePath -> String -> HasError [([Lexeme], [[Maybe Syllable]])]
+markupToDraft inputPath markup =
+    case runParser pFile () inputPath markup of
+        Left err -> Left [MarkupSyntaxError err]
+        Right result -> Right result
 
 run :: Parsec String () a -> String -> Either ParseError a
 run p = runParser p () ""

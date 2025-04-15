@@ -1,13 +1,14 @@
 module Main where
 
-import Control.Monad.Reader (runReader)
+import Control.Monad.Reader (MonadTrans (lift), ReaderT (runReaderT))
 import Control.Monad.Writer (Endo (appEndo), execWriter)
-import Data.Foldable (for_)
+import Data.Foldable (for_, traverse_)
+import Data.Jianpu.Abstract.RenderTree (voicesTreeFromMusic)
 import Data.Jianpu.Document.Abstract (abstractFromDocument)
-import Data.Jianpu.Graphics.Config (defaultRenderConfig)
+import Data.Jianpu.Graphics.Config (defaultRenderConfig, fill)
 import Data.Jianpu.Graphics.SVG (putDrawDirective, putSvgEnd, putSvgPrelude)
-import Data.Jianpu.Syntax.Document (documentFromDraftMusic)
-import Data.Jianpu.Syntax.Parser qualified as Parser
+import Data.Jianpu.Syntax.Document (documentFromDraftMusic')
+import Data.Jianpu.Syntax.Parser (markupToDraft)
 import Data.Layout (BoundingBox (..), HasBox (getBox), flattenLayoutTree)
 import GHC.IO.Encoding (setLocaleEncoding, utf8)
 import Paths_Your_Jianpu_Renderer (getDataDir)
@@ -15,75 +16,65 @@ import System.Directory (copyFile, createDirectoryIfMissing, listDirectory)
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 import System.FilePath (splitExtension)
-import Text.Parsec (runParser)
-import Data.Jianpu.Abstract.RenderTree (renderMusic)
 
 main :: IO ()
 main = do
   -- Make Windows happy!
   setLocaleEncoding utf8
 
-  getArgs >>= \case
+  args <- getArgs
+
+  case args of
     [inputPath] -> do
       input <- readFile inputPath
-      main_ inputPath input
+      case scoreSvgFromMarkup defaultRenderConfig inputPath input of
+        Left errors -> do
+          traverse_ print errors
+          exitFailure
+        Right output -> do
+          let (inputPathNoExt, _) = splitExtension inputPath
+
+          createDirectoryIfMissing True (inputPathNoExt ++ "/asset")
+
+          writeFile (inputPathNoExt ++ "/index.svg") output
+
+          dataDir <- getDataDir
+          dataFiles <- listDirectory (dataDir ++ "/asset")
+
+          for_ dataFiles $ \dataFile -> do
+            copyFile
+              (dataDir ++ "/asset/" ++ dataFile)
+              (inputPathNoExt ++ "/asset/" ++ dataFile)
     _ -> do
       putStrLn "Please provide a .yjp file."
       exitFailure
 
-main_ inputPath input =
-  case runParser Parser.pFile () inputPath input of
-    Left errors -> do
-      print errors
-      exitFailure
-    Right draftMusic -> do
-      case documentFromDraftMusic draftMusic of
-        Left errors -> do
-          print errors
-          exitFailure
-        Right document -> do
-          case abstractFromDocument document of
-            Left errors -> do
-              print errors
-              exitFailure
-            Right music -> do
-              let (inputPathNoExt, _) = splitExtension inputPath
+scoreSvgFromMarkup config inputPath markup = (`runReaderT` config) $ do
+  draft <- lift $ markupToDraft inputPath markup
+  document <- documentFromDraftMusic' draft
+  music <- lift $ abstractFromDocument document
+  scoreSvgFromMusic music
 
-              createDirectoryIfMissing True (inputPathNoExt ++ "/asset")
+scoreSvgFromMusic music = do
+  voicesTrees <- voicesTreeFromMusic music
 
-              writeFile (inputPathNoExt ++ "/index.svg") (generateOutputFrom music)
+  let flattenedTree = flattenLayoutTree voicesTrees
 
-              dataDir <- getDataDir
-              dataFiles <- listDirectory (dataDir ++ "/asset")
+  box <- fill $ getBox voicesTrees
 
-              for_ dataFiles $ \dataFile -> do
-                copyFile
-                  (dataDir ++ "/asset/" ++ dataFile)
-                  (inputPathNoExt ++ "/asset/" ++ dataFile)
+  let height = case box of
+        NoBox -> 0
+        BBox ((_, y1), (_, y2)) -> y2 - y1
 
-generateOutputFrom music = output
- where
-  config = defaultRenderConfig
+  preludeWriter <- fill $ putSvgPrelude height
+  bodyWriters <- fill $ traverse putDrawDirective flattenedTree
+  endWriter <- fill putSvgEnd
 
-  voicesTrees = runReader (renderMusic music) config
+  let outputEndoWriter = do
+        preludeWriter
+        sequence_ bodyWriters
+        endWriter
+  let outputEndo = execWriter outputEndoWriter
+  let output = appEndo outputEndo ""
 
-  flattenedTree = flattenLayoutTree voicesTrees
-
-  outputEndoWriter = (`runReader` config) $ do
-    box <- getBox voicesTrees
-    let height = case box of
-          NoBox -> 0
-          BBox ((_, y1), (_, y2)) -> y2 - y1
-
-    preludeWriter <- putSvgPrelude height
-    bodyWriters <- traverse putDrawDirective flattenedTree
-    endWriter <- putSvgEnd
-
-    pure $ do
-      preludeWriter
-      sequence_ bodyWriters
-      endWriter
-
-  outputEndo = execWriter outputEndoWriter
-
-  output = appEndo outputEndo ""
+  pure output
