@@ -23,8 +23,14 @@ main = do
   setLocaleEncoding utf8
 
   args <- getArgs
+  dataDir <- getDataDir
 
   case args of
+    ["-v"] -> do
+      putStrLn "[Your Jianpu Renderer]"
+      putStrLn "Default data directory:"
+      putStr "\t"
+      putStrLn dataDir
     [inputPath] -> do
       input <- readFile inputPath
       case scoreSvgFromMarkup defaultRenderConfig inputPath input of
@@ -38,7 +44,6 @@ main = do
 
           writeFile (inputPathNoExt ++ "/index.svg") output
 
-          dataDir <- getDataDir
           dataFiles <- listDirectory (dataDir ++ "/asset")
 
           for_ dataFiles $ \dataFile -> do
