@@ -10,12 +10,13 @@ import Data.Jianpu.Graphics.SVG (putDrawDirective, putSvgEnd, putSvgPrelude)
 import Data.Jianpu.Syntax.Document (documentFromDraftMusic')
 import Data.Jianpu.Syntax.Parser (markupToDraft)
 import Data.Layout (BoundingBox (..), HasBox (getBox), flattenLayoutTree)
+import Data.List.Utils (takeFirst)
 import GHC.IO.Encoding (setLocaleEncoding, utf8)
 import Paths_Your_Jianpu_Renderer (getDataDir)
-import System.Directory (copyFile, createDirectoryIfMissing, listDirectory)
-import System.Environment (getArgs)
-import System.Exit (exitFailure)
-import System.FilePath (splitExtension)
+import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist, getCurrentDirectory, listDirectory)
+import System.Environment (getArgs, getExecutablePath)
+import System.Exit (exitFailure, exitSuccess)
+import System.FilePath (splitExtension, splitFileName, takeDirectory, takeExtension, dropExtension)
 
 main :: IO ()
 main = do
@@ -23,14 +24,18 @@ main = do
   setLocaleEncoding utf8
 
   args <- getArgs
-  dataDir <- getDataDir
+  maybeDataDir <- getRealDataDir
 
   case args of
     ["-v"] -> do
       putStrLn "[Your Jianpu Renderer]"
-      putStrLn "Default data directory:"
-      putStr "\t"
-      putStrLn dataDir
+      case maybeDataDir of
+        Nothing -> do
+          putStrLn "No valid data directory found."
+          exitFailure
+        Just dir -> do
+          putStrLn ("Data directory: " ++ dir)
+          exitSuccess
     [inputPath] -> do
       input <- readFile inputPath
       case scoreSvgFromMarkup defaultRenderConfig inputPath input of
@@ -38,21 +43,42 @@ main = do
           traverse_ print errors
           exitFailure
         Right output -> do
-          let (inputPathNoExt, _) = splitExtension inputPath
+          -- Generate output
+          let outputDir = dropExtension inputPath
+          createDirectoryIfMissing True (outputDir ++ "/asset")
+          writeFile (outputDir ++ "/index.svg") output
 
-          createDirectoryIfMissing True (inputPathNoExt ++ "/asset")
-
-          writeFile (inputPathNoExt ++ "/index.svg") output
-
-          dataFiles <- listDirectory (dataDir ++ "/asset")
-
-          for_ dataFiles $ \dataFile -> do
-            copyFile
-              (dataDir ++ "/asset/" ++ dataFile)
-              (inputPathNoExt ++ "/asset/" ++ dataFile)
+          case maybeDataDir of
+            Nothing -> do
+              putStrLn "No valid data directory found."
+              exitFailure
+            Just dataDir -> do
+              dataFiles <- listDirectory (dataDir ++ "/asset")
+              for_ dataFiles $ \dataFile -> do
+                copyFile
+                  (dataDir ++ "/asset/" ++ dataFile)
+                  (outputDir ++ "/asset/" ++ dataFile)
+              exitSuccess
     _ -> do
       putStrLn "Please provide a .yjp file."
       exitFailure
+
+getRealDataDir :: IO (Maybe FilePath)
+getRealDataDir = do
+  possibleDirs <-
+    sequence
+      [ getCurrentDirectory
+      , getDataDir
+      , takeDirectory <$> getExecutablePath
+      ]
+
+  dirsExist <- traverse doesDirectoryExist [d ++ "/asset" | d <- possibleDirs]
+
+  let dirFindResult = takeFirst fst (zip dirsExist possibleDirs)
+
+  case dirFindResult of
+    Nothing -> return Nothing
+    Just ((_, dir), _) -> return (Just dir)
 
 scoreSvgFromMarkup config inputPath markup = (`runReaderT` config) $ do
   draft <- lift $ markupToDraft inputPath markup
