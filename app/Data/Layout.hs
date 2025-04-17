@@ -22,6 +22,7 @@ data AnchorPosition
     | APLeft
     | APRight
     | APTop
+    | APTopLeft
     | APTopRight
     | AP XY
     deriving (Show)
@@ -88,6 +89,7 @@ normAnchorPosition APBottom = (0.5, 1)
 normAnchorPosition APLeft = (0, 0.5)
 normAnchorPosition APRight = (1, 0.5)
 normAnchorPosition APTopRight = (1, 0)
+normAnchorPosition APTopLeft = (0, 0)
 
 instance Semigroup BoundingBox where
     (<>) :: BoundingBox -> BoundingBox -> BoundingBox
@@ -115,15 +117,15 @@ instance Monoid Transform where
     mempty :: Transform
     mempty = Transform (0, 0) (1, 1)
 
-instance Show a => Show (LayoutTree a) where
-    show :: Show a => LayoutTree a -> String
+instance (Show a) => Show (LayoutTree a) where
+    show :: (Show a) => LayoutTree a -> String
     show (LTNode _ []) = ""
     show (LTNode transform trees) = show transform ++ ":" ++ show trees
     show (LTLeaf anchorAlignment object) =
         show anchorAlignment ++ ":" ++ show object
 
 instance (HasSize config a) => HasBox config (LayoutTree a) where
-    getBox :: HasSize config a => LayoutTree a -> Reader config BoundingBox
+    getBox :: (HasSize config a) => LayoutTree a -> Reader config BoundingBox
     getBox (LTLeaf anchorAlignment a) = do
         let (ax, ay) = normAnchorPosition anchorAlignment
         (width, height) <- getSize a

@@ -1,27 +1,30 @@
 module Data.Jianpu.Abstract.RenderTree (voicesTreeFromMusic) where
 
-import Control.Monad ((>=>))
 import Control.Monad.Reader (asks)
-import Data.Jianpu.Abstract (Music)
-import Data.Jianpu.Graphics (Slice (elements), Slices (..))
-import Data.Jianpu.Graphics.Config (RenderConfig (lineGap, lineWidth), RenderContextT, fill)
-import Data.Jianpu.Graphics.Render (RenderObject, drawSliceElement)
+import Data.Function (on)
+import Data.IntervalMap (Interval (ClosedInterval))
+import Data.IntervalMap qualified as IM
+import Data.Jianpu.Abstract (Entity (Event, event), Music, Span (Beam))
+import Data.Jianpu.Abstract.Error (HasError)
+import Data.Jianpu.Graphics (Slice (elements), SliceElement, Slices (..))
+import Data.Jianpu.Graphics.Config (RenderConfig (lineGap, lineWidth), RenderContextT, fill, getBeamGap, getBeamHeight, getGlyphWidth)
+import Data.Jianpu.Graphics.Render (RenderObject (Rectangle), drawSliceElement)
 import Data.Jianpu.Graphics.Slice (sliceMusic)
 import Data.Jianpu.Graphics.Spacing (SpringWithRod (..), computeSpringConstants, sff)
-import Data.Layout (HasBox (getBox), LayoutTree (..), boxBoundX, boxBoundY, moveDown, moveRight)
-import Data.List (transpose)
+import Data.Jianpu.Types (Event (Action, timeMultiplier))
+import Data.Layout (AnchorPosition (APTopLeft), HasBox (getBox), LayoutTree (..), boxBoundX, boxBoundY, move, moveDown, moveRight)
+import Data.List (groupBy, transpose, zip4)
 import Data.List.NonEmpty qualified as NE
-import Data.Jianpu.Abstract.Error (HasError)
+import Data.Maybe (mapMaybe)
 
 voicesTreeFromMusic :: Music -> RenderContextT HasError (LayoutTree RenderObject)
 voicesTreeFromMusic music = do
     let Slices slices spanGroups = sliceMusic music
 
-    let slicesElementsBoxes' = mapM (mapM (drawSliceElement >=> (fill . getBox)) . elements) slices
+    slicesTrees <- mapM (mapM drawSliceElement . elements) slices
+    slicesBoxes <- mapM (mapM (fill . getBox)) slicesTrees
 
-    slicesElementsBoxes <- slicesElementsBoxes'
-
-    let slicesElementsBoundsY = map (map boxBoundX) slicesElementsBoxes
+    let slicesElementsBoundsY = map (map boxBoundX) slicesBoxes
 
     let springMinLengths =
             maximum (negativeSize <$> head slicesElementsBoundsY)
@@ -48,30 +51,91 @@ voicesTreeFromMusic music = do
     let springExtensions =
             [max rodLength (force / springConst) | SWR{..} <- springs]
 
-    let voicesBoxes = transpose slicesElementsBoxes
+    let voicesBoxes = transpose slicesBoxes
 
     let voicesBoundsY = boxBoundY . mconcat <$> voicesBoxes
 
-    slicesElements <- mapM (mapM drawSliceElement . elements) slices
-
-    let voicesElements = transpose slicesElements
+    let voicesTrees = transpose slicesTrees
 
     let slicesOffsetX = init $ scanl1 (+) springExtensions
 
     lineGap <- asks lineGap
 
-    let voicesOffsetsY = scanl1 (+) $ do
-            negativeSize (head voicesBoundsY)
-                : zipWith
-                    (\bottom top -> bottom + lineGap + top)
-                    (positiveSize <$> voicesBoundsY)
-                    (negativeSize <$> tail voicesBoundsY)
+    let voicesOffsetsY =
+            scanl1 (+) $
+                negativeSize (head voicesBoundsY)
+                    : zipWith
+                        ( \upperLineBottom lowerLineTop ->
+                            upperLineBottom + lineGap + lowerLineTop
+                        )
+                        (positiveSize <$> voicesBoundsY)
+                        (negativeSize <$> tail voicesBoundsY)
+
+    let voicesElements = transpose $ elements <$> slices
+
+    glyphWidth <- asks getGlyphWidth
+    beamHeight <- asks getBeamHeight
+    beamGap <- asks getBeamGap
 
     pure $ LTNode mempty $ do
-        (voiceElements, voiceOffsetY) <- zip voicesElements voicesOffsetsY
-        pure $ LTNode (moveDown voiceOffsetY) $ do
-            (voiceElement, sliceOffsetX) <- zip voiceElements slicesOffsetX
-            pure $ LTNode (moveRight sliceOffsetX) [voiceElement]
+        (voiceTrees, voiceOffsetY, spans, voiceElements) <-
+            zip4 voicesTrees voicesOffsetsY spanGroups voicesElements
+
+        let maxBeamCount = maximum $ beamCount <$> voiceElements
+
+        let beamMasksByEntity = do
+                element <- voiceElements
+                let count = beamCount element
+                [replicate count True ++ replicate (maxBeamCount - count) False]
+
+        let beamMasksByLevel = transpose beamMasksByEntity
+
+        let beamSpans =
+                mapMaybe (\case ClosedInterval a b -> Just (a, b); _ -> Nothing) $
+                    IM.keys $
+                        IM.mapMaybe (\case Beam -> Just (); _ -> Nothing) spans
+
+        let inTheSameBeam a b =
+                any (\(spanA, spanB) -> spanA <= a && a <= b && b <= spanB) beamSpans
+
+        let beamsTree = LTNode mempty $ do
+                (level, masks) <- zip [1 ..] beamMasksByLevel
+
+                members <-
+                    -- `groupBy` doesn't filter notes without beams
+                    -- so remove them after grouping.
+                    filter (all (\(_, (_, m)) -> m)) $
+                        groupBy
+                            ( \(_, (a, m1)) (_, (b, m2)) ->
+                                (m1 && m2) -- Both have beams
+                                    && inTheSameBeam a b
+                            )
+                            (zip slicesOffsetX (zip [0 ..] masks))
+
+                let membersOffsetsX = fst <$> members
+
+                let beamRange = case membersOffsetsX of
+                        [] -> Nothing
+                        [x] -> Just (x - glyphWidth * 0.55, x + glyphWidth * 0.55)
+                        x1 : xs -> Just (x1 - glyphWidth * 0.55, last xs + glyphWidth * 0.55)
+
+                case beamRange of
+                    Nothing -> []
+                    Just (x1, x2) ->
+                        [ LTNode
+                            (move x1 (beamGap + (level - 1) * (beamHeight + beamGap)))
+                            [LTLeaf APTopLeft (Rectangle (x2 - x1) beamHeight)]
+                        ]
+
+        pure $
+            LTNode (moveDown voiceOffsetY) $
+                beamsTree : do
+                    (voiceElement, sliceOffsetX) <- zip voiceTrees slicesOffsetX
+                    pure $ LTNode (moveRight sliceOffsetX) [voiceElement]
+
+beamCount :: SliceElement -> Int
+beamCount (Just (Right (Event{event = Action{..}}))) = fromEnum timeMultiplier
+beamCount _ = 0
 
 negativeSize :: (Double, Double) -> Double
 negativeSize (x, _) = max 0 (-x)

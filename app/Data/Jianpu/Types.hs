@@ -2,8 +2,8 @@ module Data.Jianpu.Types where
 
 import Data.List (intercalate)
 import Data.List.NonEmpty (NonEmpty (..))
-import Data.Maybe ( fromMaybe )
-import Data.Ratio ( Ratio, denominator, numerator )
+import Data.Maybe (fromMaybe)
+import Data.Ratio (Ratio, denominator, numerator)
 
 type Duration = Ratio Int
 type TimeSignature = (Int, Int)
@@ -20,10 +20,7 @@ data Event
     deriving (Eq)
 
 data TimeMultiplier = Whole | Minim | Crotchet | Quaver | Semiquaver
-    deriving
-        ( Eq
-        , Enum -- Number of underlines below the note
-        )
+    deriving (Eq, Enum {- Number of beams below the note -})
 
 data Sound
     = Note

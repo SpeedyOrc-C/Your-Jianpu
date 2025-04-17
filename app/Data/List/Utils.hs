@@ -29,3 +29,10 @@ partitionEithersNE (Right b :| x:xs) =
     case partitionEithersNE (x :| xs) of
         Right bs -> Right $ b :| toList bs
         as -> as
+
+groupByAdjacent :: (a -> a -> Bool) -> [a] -> [[a]]
+groupByAdjacent _ [] = []
+groupByAdjacent _ [x] = [[x]]
+groupByAdjacent condition (x : xs) =
+    let (same, rest) = span (condition x) xs
+     in (x : same) : groupByAdjacent condition rest
