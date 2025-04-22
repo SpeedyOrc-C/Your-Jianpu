@@ -3,7 +3,7 @@ module Main where
 import Control.Monad.Reader (MonadTrans (lift), ReaderT (runReaderT))
 import Control.Monad.Writer (Endo (appEndo), execWriter)
 import Data.Foldable (for_, traverse_)
-import Data.Jianpu.Abstract.RenderTree (voicesTreeFromMusic)
+import Data.Jianpu.Abstract.RenderTree (engraveMusic)
 import Data.Jianpu.Document.Abstract (abstractFromDocument)
 import Data.Jianpu.Graphics.Config (defaultRenderConfig, fill)
 import Data.Jianpu.Graphics.SVG (putDrawDirective, putSvgEnd, putSvgPrelude)
@@ -90,7 +90,7 @@ scoreSvgFromMarkup config inputPath markup = (`runReaderT` config) $ do
     scoreSvgFromMusic music
 
 scoreSvgFromMusic music = do
-    voicesTrees <- voicesTreeFromMusic music
+    voicesTrees <- engraveMusic music
 
     let flattenedTree = flattenLayoutTree voicesTrees
 

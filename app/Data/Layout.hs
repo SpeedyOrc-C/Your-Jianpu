@@ -124,6 +124,14 @@ instance (Show a) => Show (LayoutTree a) where
     show (LTLeaf anchorAlignment object) =
         show anchorAlignment ++ ":" ++ show object
 
+instance (HasSize config a) => HasBox config (DrawDirective a) where
+    getBox :: (HasSize config a) => DrawDirective a -> Reader config BoundingBox
+    getBox (transform, anchorAlignment, a) =
+        getBox $ LTNode transform [LTLeaf anchorAlignment a]
+
+instance (HasSize config a) => HasBox config (LayoutFlat a) where
+    getBox (LayoutFlat ts) = undefined <$> mapM getBox ts
+
 instance (HasSize config a) => HasBox config (LayoutTree a) where
     getBox :: (HasSize config a) => LayoutTree a -> Reader config BoundingBox
     getBox (LTLeaf anchorAlignment a) = do
@@ -142,3 +150,7 @@ instance (HasSize config a) => HasBox config (LayoutTree a) where
                     ( (x1 * sx + dx, y1 * sy + dy)
                     , (x2 * sx + dx, y2 * sy + dy)
                     )
+
+instance (HasSize config a) => HasBox config [LayoutTree a] where
+    getBox :: (HasSize config a) => [LayoutTree a] -> Reader config BoundingBox
+    getBox = fmap mconcat . mapM getBox

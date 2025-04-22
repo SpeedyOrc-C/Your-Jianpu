@@ -67,25 +67,47 @@ putRect x y width height = do
     puts $ show $ show height
     puts " />"
 
+putCurve x y width height = do
+    puts "<path d=\""
+    puts "M "
+    puts $ show x
+    puts " "
+    puts $ show $ y + height
+    puts " Q "
+    puts $ show $ x + width / 2
+    puts " "
+    puts $ show $ y - height
+    puts " "
+    puts $ show $ x + width
+    puts " "
+    puts $ show $ y + height
+    puts "\" />"
+
 putGlyph :: Double -> Double -> Double -> Double -> Glyph -> StringWriter
-putGlyph x y width height g = putImage x y width height $ case g of
-    G0 -> "asset/Glyph0.svg"
-    G1 -> "asset/Glyph1.svg"
-    G2 -> "asset/Glyph2.svg"
-    G3 -> "asset/Glyph3.svg"
-    G4 -> "asset/Glyph4.svg"
-    G5 -> "asset/Glyph5.svg"
-    G6 -> "asset/Glyph6.svg"
-    G7 -> "asset/Glyph7.svg"
-    GX -> "asset/GlyphX.svg"
+putGlyph x y width height g = do
+    puts "asset/"
+    putImage x y width height $ case g of
+        G0 -> "Glyph0.svg"
+        G1 -> "Glyph1.svg"
+        G2 -> "Glyph2.svg"
+        G3 -> "Glyph3.svg"
+        G4 -> "Glyph4.svg"
+        G5 -> "Glyph5.svg"
+        G6 -> "Glyph6.svg"
+        G7 -> "Glyph7.svg"
+        GX -> "GlyphX.svg"
+    puts ".svg"
 
 putAccidental :: Double -> Double -> Double -> Double -> GAccidental -> StringWriter
-putAccidental x y width height a = putImage x y width height $ case a of
-    GSharp -> "asset/AccidentalSharp.svg"
-    GFlat -> "asset/AccidentalFlat.svg"
-    GNatural -> "asset/AccidentalNatural.svg"
-    GDoubleSharp -> "asset/AccidentalDoubleSharp.svg"
-    GDoubleFlat -> "asset/AccidentalDoubleFlat.svg"
+putAccidental x y width height a = do
+    puts "asset/"
+    putImage x y width height $ case a of
+        GSharp -> "AccidentalSharp"
+        GFlat -> "AccidentalFlat"
+        GNatural -> "AccidentalNatural"
+        GDoubleSharp -> "AccidentalDoubleSharp"
+        GDoubleFlat -> "AccidentalDoubleFlat"
+    puts ".svg"
 
 putDrawDirective :: DrawDirective RenderObject -> RenderContext StringWriter
 putDrawDirective (Transform position (scaleX, scaleY), anchorPosition, object) = do
@@ -105,9 +127,10 @@ putDrawDirective (Transform position (scaleX, scaleY), anchorPosition, object) =
         case object of
             Circle r -> putCircle ((x1 + x2) / 2) ((y1 + y2) / 2) r
             Rectangle width' height' -> putRect x y width' height'
+            Curve width' height' -> putCurve x y width' height'
             Glyph g -> putGlyph x y width height g
             GAccidental a -> putAccidental x y width height a
-            InvisibleRectangle {} -> tell mempty
+            InvisibleRectangle{} -> tell mempty
             Text size align text -> putText x y size align text
 
         puts "\n"

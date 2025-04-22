@@ -32,7 +32,7 @@ data Span
     | Tie -- Connects two notes of the same pitch
     | TieInChord [Int] -- Between two chords, connects the notes at the specified indices
     | Tuplet Int
-    | Curve Boundary
+    -- | Curve Boundary
     | Beam
     | Fermata
     deriving (Show, Eq)

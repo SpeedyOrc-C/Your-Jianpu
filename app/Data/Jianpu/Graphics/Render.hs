@@ -3,6 +3,7 @@ module Data.Jianpu.Graphics.Render where
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Data.Jianpu.Abstract
+import Data.Jianpu.Abstract.Error (HasError)
 import Data.Jianpu.Graphics
 import Data.Jianpu.Graphics.Config
 import Data.Jianpu.Types
@@ -10,7 +11,6 @@ import Data.Layout
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Maybe
 import Debug.Trace (trace, traceM, traceShow, traceShowId, traceShowM)
-import Data.Jianpu.Abstract.Error (HasError)
 
 data AlignText = ATLeft | ATRight | ATCentre
     deriving (Show, Eq)
@@ -20,6 +20,7 @@ data RenderObject
     | GAccidental GAccidental
     | Circle Double
     | Rectangle Double Double
+    | Curve Double Double
     | Text Double AlignText String
     | InvisibleRectangle Double Double
     deriving (Show)
@@ -54,11 +55,11 @@ Need more information about vertical spacing of other notes
 when there are ties inside chords.
 Add them as new parameters in the future!
 -}
-drawSliceElement :: SliceElement -> RenderContextT HasError (LayoutTree RenderObject)
-drawSliceElement Nothing = pure $ LTNode mempty []
-drawSliceElement (Just (Left _)) = pure $ LTNode mempty []
-drawSliceElement (Just (Right (Event{event}))) = drawEvent event
-drawSliceElement (Just (Right (Tag tag))) = drawTag tag
+engraveSliceElement :: SliceElement -> RenderContextT HasError (LayoutTree RenderObject)
+engraveSliceElement Nothing = pure $ LTNode mempty []
+engraveSliceElement (Just (Left _)) = pure $ LTNode mempty []
+engraveSliceElement (Just (Right (Event{event}))) = drawEvent event
+engraveSliceElement (Just (Right (Tag tag))) = drawTag tag
 
 drawTag :: Tag -> RenderContextT HasError (LayoutTree RenderObject)
 drawTag BarLine = do
@@ -94,7 +95,7 @@ drawTag EndSign = do
             , LTLeaf APRight (InvisibleRectangle barLineLeftPadding barLineLength)
             , LTLeaf APLeft (InvisibleRectangle barLineRightPadding barLineLength)
             ]
-drawTag TimeSignature {} = pure $ LTNode mempty []
+drawTag TimeSignature{} = pure $ LTNode mempty []
 
 drawEvent :: Event -> RenderContextT HasError (LayoutTree RenderObject)
 drawEvent Action{..} = drawSound sound dot timeMultiplier
