@@ -17,6 +17,7 @@ import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist,
 import System.Environment (getArgs, getExecutablePath)
 import System.Exit (exitFailure, exitSuccess)
 import System.FilePath (dropExtension, takeDirectory)
+import Debug.Trace (traceShowM, traceShowId)
 
 main :: IO ()
 main = do

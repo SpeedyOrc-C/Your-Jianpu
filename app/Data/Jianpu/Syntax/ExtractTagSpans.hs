@@ -6,8 +6,7 @@ import Control.Monad.State (
     modify,
     runState,
  )
-import Data.IntervalMap (Interval (..), IntervalMap)
-import Data.IntervalMap qualified as IM
+import Data.IntervalMap.Generic.Strict qualified as IM
 import Data.Jianpu.Abstract.Error (
     AbstractError (
         ErrorArgsBeam,
@@ -22,7 +21,7 @@ import Data.Jianpu.Abstract.Error (
  )
 import Data.Jianpu.Abstract (
     Span (Beam, Fermata, Slur, Tie, Tuplet),
-    Tag (..),
+    Tag (..), Spans, Interval (I),
  )
 import Data.Jianpu.Syntax ( Argument(AInt), Lexeme(..) )
 import Data.Jianpu.Types (Event)
@@ -31,7 +30,7 @@ import Data.Maybe (mapMaybe)
 
 data ExtractorState = ES
     { currentIndex :: Int
-    , currentSpans :: IntervalMap Int Span
+    , currentSpans :: Spans
     , tagStartStack :: [TagStartEntry]
     }
     deriving (Show)
@@ -43,7 +42,7 @@ type TagStartEntry =
     , [Argument]
     )
 
-extractTagSpans :: [Lexeme] -> Either [AbstractError] (IntervalMap Int Span, [Either Tag Event])
+extractTagSpans :: [Lexeme] -> Either [AbstractError] (Spans, [Either Tag Event])
 extractTagSpans entities' =
     case errors of
         [] -> Right (tagSpans, entities)
@@ -94,7 +93,7 @@ extractOne (Tag1 name args) =
                     { currentIndex
                     , currentSpans =
                         IM.insert
-                            (ClosedInterval currentIndex currentIndex)
+                            (I (currentIndex, currentIndex))
                             tagSpan
                             currentSpans
                     }
@@ -121,7 +120,7 @@ extractOne (TagEnd name idx) = state $ \es@ES{currentIndex, currentSpans, tagSta
                     , es
                         { currentSpans =
                             IM.insert
-                                (ClosedInterval startIndex (currentIndex - 1))
+                                (I (startIndex, currentIndex - 1))
                                 tagSpan
                                 currentSpans
                         , tagStartStack = tagStartStack'

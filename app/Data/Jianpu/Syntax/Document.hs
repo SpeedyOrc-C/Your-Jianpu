@@ -1,10 +1,10 @@
 module Data.Jianpu.Syntax.Document where
 
-import Control.Monad.Reader (MonadReader (ask), ReaderT, MonadTrans (lift))
+import Control.Monad.Reader (MonadTrans (lift))
 import Data.Jianpu.Abstract.Error
 import Data.Jianpu.Document
 import Data.Jianpu.Document.Beaming (addBeams)
-import Data.Jianpu.Graphics.Config (RenderConfig, RenderContext, RenderContextT)
+import Data.Jianpu.Graphics.Config (RenderContextT)
 import Data.Jianpu.Syntax
 import Data.Jianpu.Syntax.CalculateDurations
 import Data.Jianpu.Syntax.ExtractTagSpans

@@ -1,9 +1,9 @@
 module Data.Jianpu.Graphics where
 import Data.Jianpu.Types ( Event, Duration )
 import Data.IntervalMap (IntervalMap)
-import Data.Jianpu.Abstract ( Span, Entity )
+import Data.Jianpu.Abstract ( Span, Entity, Spans )
 
-data Slices = Slices [Slice] [IntervalMap Int Span]
+data Slices = Slices [Slice] [Spans]
     deriving (Show)
 
 data Slice = Slice

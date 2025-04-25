@@ -7,6 +7,7 @@ import Data.Jianpu.Graphics.Render
 import Data.Jianpu.Types
 import Data.Layout
 import Data.List.NonEmpty (NonEmpty (..))
+import Debug.Trace (traceShow, traceShowId, traceShowM)
 
 type StringWriter = Writer (Endo String) ()
 
@@ -67,6 +68,7 @@ putRect x y width height = do
     puts $ show $ show height
     puts " />"
 
+putCurve :: Double -> Double -> Double -> Double -> StringWriter
 putCurve x y width height = do
     puts "<path d=\""
     puts "M "
@@ -81,40 +83,35 @@ putCurve x y width height = do
     puts $ show $ x + width
     puts " "
     puts $ show $ y + height
-    puts "\" />"
+    puts "\" fill=\"none\" stroke=\"#000000\" stroke-width=\"2px\" />"
 
 putGlyph :: Double -> Double -> Double -> Double -> Glyph -> StringWriter
 putGlyph x y width height g = do
-    puts "asset/"
     putImage x y width height $ case g of
-        G0 -> "Glyph0.svg"
-        G1 -> "Glyph1.svg"
-        G2 -> "Glyph2.svg"
-        G3 -> "Glyph3.svg"
-        G4 -> "Glyph4.svg"
-        G5 -> "Glyph5.svg"
-        G6 -> "Glyph6.svg"
-        G7 -> "Glyph7.svg"
-        GX -> "GlyphX.svg"
-    puts ".svg"
+        G0 -> "asset/Glyph0.svg"
+        G1 -> "asset/Glyph1.svg"
+        G2 -> "asset/Glyph2.svg"
+        G3 -> "asset/Glyph3.svg"
+        G4 -> "asset/Glyph4.svg"
+        G5 -> "asset/Glyph5.svg"
+        G6 -> "asset/Glyph6.svg"
+        G7 -> "asset/Glyph7.svg"
+        GX -> "asset/GlyphX.svg"
 
 putAccidental :: Double -> Double -> Double -> Double -> GAccidental -> StringWriter
 putAccidental x y width height a = do
-    puts "asset/"
     putImage x y width height $ case a of
-        GSharp -> "AccidentalSharp"
-        GFlat -> "AccidentalFlat"
-        GNatural -> "AccidentalNatural"
-        GDoubleSharp -> "AccidentalDoubleSharp"
-        GDoubleFlat -> "AccidentalDoubleFlat"
-    puts ".svg"
+        GSharp -> "asset/AccidentalSharp.svg"
+        GFlat -> "asset/AccidentalFlat.svg"
+        GNatural -> "asset/AccidentalNatural.svg"
+        GDoubleSharp -> "asset/AccidentalDoubleSharp.svg"
+        GDoubleFlat -> "asset/AccidentalDoubleFlat.svg"
 
 putDrawDirective :: DrawDirective RenderObject -> RenderContext StringWriter
 putDrawDirective (Transform position (scaleX, scaleY), anchorPosition, object) = do
     (sizeX, sizeY) <- getSize object
 
-    let ((x1, y1), (x2, y2)) =
-            computeBox position (sizeX * scaleX, sizeY * scaleY) anchorPosition
+    let ((x1, y1), (x2, y2)) = computeBox position (sizeX * scaleX, sizeY * scaleY) anchorPosition
 
     let x = x1
     let y = y1

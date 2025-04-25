@@ -43,6 +43,7 @@ instance HasSize RenderConfig RenderObject where
         pure (accidentalWidth, accidentalHeight)
     getSize (Circle r) = pure (2 * r, 2 * r)
     getSize (Rectangle sx sy) = pure (sx, sy)
+    getSize (Curve sx sy) = pure (sx, sy)
     getSize (InvisibleRectangle sx sy) = pure (sx, sy)
     getSize (Text size _ _) = pure (0, size)
 

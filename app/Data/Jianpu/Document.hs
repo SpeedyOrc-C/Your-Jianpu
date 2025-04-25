@@ -1,7 +1,6 @@
 module Data.Jianpu.Document where
 
-import Data.IntervalMap (IntervalMap)
-import Data.Jianpu.Abstract (Entity, Span)
+import Data.Jianpu.Abstract (Entity, Spans)
 import Data.Jianpu.Types (Syllable)
 
 newtype DocumentMusic = DMusic [DocumentVoice]
@@ -9,6 +8,6 @@ newtype DocumentMusic = DMusic [DocumentVoice]
 data DocumentVoice
     = DVoice
     { dEntities :: [Entity]
-    , dSpans :: IntervalMap Int Span
+    , dSpans :: Spans
     , lyrics :: [[Maybe Syllable]]
     }

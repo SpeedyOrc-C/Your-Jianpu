@@ -67,6 +67,7 @@ executable yjpc
         , mtl
         , parsec
         , containers
+        , array
         , HaXml
         , IntervalMap
         , process

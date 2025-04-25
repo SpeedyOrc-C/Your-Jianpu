@@ -1,16 +1,36 @@
 module Data.Jianpu.Syntax.CalculateDurations (calculateDurations) where
 
-import Control.Monad.State
-import Data.Function
-import Data.IntervalMap (IntervalMap)
-import Data.IntervalMap qualified as IM
-import Data.Jianpu.Abstract
-import Data.Jianpu.Types
-import Data.Ratio
+import Control.Monad.State (
+    MonadState (get, state),
+    State,
+    evalState,
+ )
+import Data.Function ((&))
+import Data.IntervalMap.Generic.Strict qualified as IM
+import Data.Jianpu.Abstract (
+    Entity (Event, Tag),
+    Interval,
+    Span (Tuplet),
+    Spans,
+    Tag (TimeSignature),
+ )
+import Data.Jianpu.Types (
+    Event (
+        Action,
+        MultiBarRest,
+        Pronounce,
+        Repeater4,
+        dot,
+        timeMultiplier
+    ),
+    TimeMultiplier (Crotchet, Minim, Quaver, Semiquaver, Whole),
+    TimeSignature,
+ )
+import Data.Ratio (Ratio, (%))
 
 type TupletMultiplier = Ratio Int
 
-calculateDurations :: (IntervalMap Int Span, [Either Tag Event]) -> [Entity]
+calculateDurations :: (Spans, [Either Tag Event]) -> [Entity]
 calculateDurations (spans, entities) =
     evalState calculation Nothing
   where
@@ -23,7 +43,7 @@ calculateDurations (spans, entities) =
         _ -> Nothing
 
 calculateDuration ::
-    IntervalMap Int TupletMultiplier ->
+    IM.IntervalMap (Interval Int) TupletMultiplier ->
     (Int, Either Tag Event) ->
     State (Maybe TimeSignature) Entity
 calculateDuration _ (_, Left tagSingleton@(TimeSignature a b)) =

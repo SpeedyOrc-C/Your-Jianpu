@@ -19,6 +19,7 @@ type BBox = (XY, XY)
 data AnchorPosition
     = APCentre
     | APBottom
+    | APBottomLeft
     | APLeft
     | APRight
     | APTop
@@ -49,6 +50,10 @@ boxBoundX (BBox ((x1, _), (x2, _))) = (x1, x2)
 boxBoundY :: BoundingBox -> (Double, Double)
 boxBoundY NoBox = (0, 0)
 boxBoundY (BBox ((_, y1), (_, y2))) = (y1, y2)
+
+boxBound :: BoundingBox -> (XY, XY)
+boxBound NoBox = ((0, 0), (0, 0))
+boxBound (BBox ((x1, y1), (x2, y2))) = ((x1, y1), (x2, y2))
 
 flattenLayoutTree :: LayoutTree a -> [DrawDirective a]
 flattenLayoutTree tree =
@@ -86,6 +91,7 @@ normAnchorPosition (AP xy) = xy
 normAnchorPosition APCentre = (0.5, 0.5)
 normAnchorPosition APTop = (0.5, 0)
 normAnchorPosition APBottom = (0.5, 1)
+normAnchorPosition APBottomLeft = (0, 1)
 normAnchorPosition APLeft = (0, 0.5)
 normAnchorPosition APRight = (1, 0.5)
 normAnchorPosition APTopRight = (1, 0)
@@ -130,6 +136,7 @@ instance (HasSize config a) => HasBox config (DrawDirective a) where
         getBox $ LTNode transform [LTLeaf anchorAlignment a]
 
 instance (HasSize config a) => HasBox config (LayoutFlat a) where
+    getBox :: (HasSize config a) => LayoutFlat a -> Reader config BoundingBox
     getBox (LayoutFlat ts) = undefined <$> mapM getBox ts
 
 instance (HasSize config a) => HasBox config (LayoutTree a) where

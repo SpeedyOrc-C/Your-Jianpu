@@ -4,15 +4,20 @@
 
 module Data.Jianpu.Graphics.Slice where
 
-import Control.Arrow
-import Control.Monad.State
-import Data.IntervalMap (IntervalMap)
-import Data.IntervalMap qualified as IM
+import Control.Arrow (Arrow (first))
+import Control.Monad.State (MonadState (get, put), evalState)
+import Data.IntervalMap.Generic.Strict qualified as IM
+import Data.Jianpu.Abstract (Interval (..), Spans)
 import Data.Jianpu.Abstract qualified as Abstract
-import Data.Jianpu.Graphics
-import Data.Jianpu.Types
-import Data.List
-import Data.Maybe
+import Data.Jianpu.Graphics (
+    ContEvent (..),
+    Slice (Slice),
+    SliceElement,
+    Slices (..),
+ )
+import Data.Jianpu.Types (Duration)
+import Data.List (transpose, uncons)
+import Data.Maybe (catMaybes, fromJust)
 
 data AlignedItem
     = AlignTag Abstract.Tag
@@ -37,14 +42,14 @@ sliceMusic (Abstract.Music voices) =
     spansMappers = computeSpansMapper <$> slicesByVoice
     slicesByVoice = transpose elementsGroups
 
-computeSpansMapper ::
-    [SliceElement] ->
-    (IntervalMap Int Abstract.Span -> IntervalMap Int Abstract.Span)
-computeSpansMapper = do
-    fmap (\case Just (Right{}) -> True; _ -> False)
-        >>> computeOldToNewIndices
-        >>> (\pairs a -> fromJust (lookup a pairs))
-        >>> (\f -> IM.toList >>> fmap (first (fmap f)) >>> IM.fromList)
+computeSpansMapper :: [SliceElement] -> (Spans -> Spans)
+computeSpansMapper elements spans =
+    IM.fromList $ first intervalMapper <$> IM.toList spans
+  where
+    mask = [case e of Just Right{} -> True; _ -> False | e <- elements]
+    mapperDict = computeOldToNewIndices mask
+    indexMapper i = fromJust (lookup i mapperDict)
+    intervalMapper (I (a, b)) = I (indexMapper a, indexMapper b)
 
 computeOldToNewIndices :: [Bool] -> [(Int, Int)]
 computeOldToNewIndices mask = evalState (f mask) (0, 0)

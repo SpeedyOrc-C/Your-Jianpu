@@ -2,9 +2,8 @@ module Data.Jianpu.Document.Beaming (addBeams) where
 
 import Control.Monad.Reader (MonadTrans (lift), asks)
 import Control.Monad.State (MonadState (..), StateT, evalStateT)
-import Data.IntervalMap (Interval (ClosedInterval))
-import Data.IntervalMap qualified as IM
-import Data.Jianpu.Abstract (Entity (Event, Tag, duration, event), Span (Beam), Tag (TimeSignature))
+import Data.IntervalMap.Generic.Strict qualified as IM
+import Data.Jianpu.Abstract (Entity (Event, Tag, duration, event), Span (Beam), Tag (TimeSignature), Interval (I))
 import Data.Jianpu.Abstract.Error (HasError)
 import Data.Jianpu.Document (DocumentVoice (..))
 import Data.Jianpu.Graphics.Config (RenderConfig (initialTimeSignature), RenderContextT)
@@ -58,7 +57,7 @@ addBeams' ((index, Event{duration, event = Action{}}) : es) = do
                     , spanLeftIndex = index + 1
                     , ..
                     }
-            ((ClosedInterval spanLeftIndex index, Beam) :) <$> addBeams' es
+            ((I (spanLeftIndex, index), Beam) :) <$> addBeams' es
         LT -> do
             put BS{nowDuration = nowDuration + duration, ..}
             addBeams' es

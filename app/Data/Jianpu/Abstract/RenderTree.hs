@@ -1,25 +1,29 @@
 module Data.Jianpu.Abstract.RenderTree (engraveMusic) where
 
-import Control.Monad.Reader (asks)
-import Data.IntervalMap (Interval (ClosedInterval))
-import Data.IntervalMap qualified as IM
-import Data.IntervalMap.Lazy (IntervalMap)
-import Data.Jianpu.Abstract (Entity (Event, event), Music, Span (Beam))
-import Data.Jianpu.Abstract.Error (HasError)
+import Control.Monad.Reader (MonadReader, MonadTrans (lift), asks)
+import Control.Monad.State.Strict (MonadState (get, put), StateT, evalStateT)
+import Data.Array (listArray, (!))
+import Data.Function (on)
+import Data.IntervalMap.Generic.Strict (IntervalMap)
+import Data.IntervalMap.Generic.Strict qualified as IM
+import Data.Jianpu.Abstract (Entity (Event, event), Interval (I), Music, Span (Beam, Slur, Tie), SpanWithRenderOrder (SRO), Spans)
 import Data.Jianpu.Graphics (Slice (elements), SliceElement, Slices (..))
-import Data.Jianpu.Graphics.Config (RenderConfig (lineGap, lineWidth), RenderContextT, fill, getBeamGap, getBeamHeight, getGlyphWidth)
-import Data.Jianpu.Graphics.Render (RenderObject (Rectangle), engraveSliceElement)
+import Data.Jianpu.Graphics.Config (RenderConfig (lineGap, lineWidth, slurPaddingBottom'glyphHeight, slurPaddingX'glyphWidth), TryRenderContext, fill, getBeamGap, getBeamHeight, getGlyphWidth, getSlurHeight, getSlurPaddingBottom, getSlurPaddingX)
+import Data.Jianpu.Graphics.Render (RenderObject (Curve, Rectangle), engraveSliceElement)
 import Data.Jianpu.Graphics.Slice (sliceMusic)
 import Data.Jianpu.Graphics.Spacing (SpringWithRod (..), computeSpringConstants, sff)
 import Data.Jianpu.Types (Event (Action, timeMultiplier))
-import Data.Layout (AnchorPosition (APTopLeft), BoundingBox, HasBox (getBox), LayoutTree (..), boxBoundX, boxBoundY, move, moveDown, moveRight)
-import Data.List (groupBy, transpose)
+import Data.Layout (AnchorPosition (APBottom, APBottomLeft, APTopLeft), BoundingBox (BBox, NoBox), HasBox (getBox), LayoutTree (..), boxBound, boxBoundX, boxBoundY, move, moveDown, moveRight)
+import Data.List (groupBy, sortBy, transpose)
 import Data.List.NonEmpty qualified as NE
 import Data.Maybe (mapMaybe)
 import Data.Traversable (for)
-import Debug.Trace (traceShowM)
+import Debug.Trace (traceShowId, traceShowM)
 
-type Engraver = RenderContextT HasError (LayoutTree RenderObject)
+type Engraver = TryRenderContext (LayoutTree RenderObject)
+
+type HeightMapContextT a = StateT HeightMap a
+type HeightMap = IntervalMap (Interval Double) Double
 
 engraveMusic :: Music -> Engraver
 engraveMusic music = do
@@ -35,10 +39,12 @@ engraveMusic music = do
 
     let slicesOffsetX = computeSlicesOffsetX slices (transpose boxesByLine) lineWidth
 
-    engravedVoices <- for (zip elementsByLine spanGroups) $ \(elements, spans) -> do
-        engravedBaseNotes <- engraveBaseNotes slicesOffsetX elements
-        engravedBeams <- engraveBeams slicesOffsetX spans elements
-        pure [engravedBaseNotes, engravedBeams]
+    engravedVoices <-
+        for (zip3 elementsByLine spanGroups boxesByLine) $ \(elements, spans, boxes) -> do
+            engravedBaseNotes <- engraveBaseNotes slicesOffsetX elements
+            engravedBeams <- engraveBeams slicesOffsetX spans elements
+            engravedSpans <- engraveSpans slicesOffsetX spans boxes
+            pure [engravedSpans, engravedBaseNotes, engravedBeams]
 
     (map boxBoundY -> engravedVoicesBoundY) <- traverse (fill . getBox) engravedVoices
 
@@ -51,8 +57,6 @@ engraveMusic music = do
                         )
                         (positiveSize <$> engravedVoicesBoundY)
                         (negativeSize <$> tail engravedVoicesBoundY)
-
-    traceShowM slicesOffsetX
 
     pure . LTNode mempty $
         [ LTNode (moveDown offsetY) engravedVoice
@@ -90,7 +94,7 @@ computeSlicesOffsetX slices slicesBoxes lineWidth =
             ++ [maximum (positiveSize <$> last slicesElementsBoundsY)]
     slicesElementsBoundsY = map (map boxBoundX) slicesBoxes
 
-engraveBeams :: [Double] -> IntervalMap Int Span -> [SliceElement] -> Engraver
+engraveBeams :: [Double] -> Spans -> [SliceElement] -> Engraver
 engraveBeams slicesOffsetX spans voiceElements = do
     beamGap <- asks getBeamGap
     beamHeight <- asks getBeamHeight
@@ -135,7 +139,7 @@ engraveBeams slicesOffsetX spans voiceElements = do
     beamMasksByLevel = transpose beamMasksByEntity
 
     beamSpans =
-        mapMaybe (\case ClosedInterval a b -> Just (a, b); _ -> Nothing) $
+        map (\case I (a, b) -> (a, b)) $
             IM.keys $
                 IM.mapMaybe (\case Beam -> Just (); _ -> Nothing) spans
 
@@ -151,3 +155,71 @@ negativeSize (x, _) = max 0 (-x)
 
 positiveSize :: (Double, Double) -> Double
 positiveSize (_, x) = max 0 x
+
+engraveSpans ::
+    [Double] ->
+    IntervalMap (Interval Int) Span ->
+    [BoundingBox] ->
+    TryRenderContext (LayoutTree RenderObject)
+engraveSpans slicesOffsetX spans boxes =
+    LTNode mempty <$> engravedSpansTrees
+  where
+    engravedSpansTrees = evalStateT engravedSpansStateful initialHeightMap
+
+    engravedSpansStateful =
+        sequence
+            [ engraveSpan absoluteInterval s
+            | (I (a, b), s) <- spansInRenderOrder
+            , let absoluteInterval =
+                    I (slicesOffsetXArray ! a, slicesOffsetXArray ! b)
+            ]
+
+    spansInRenderOrder = sortBy (compare `on` SRO) (IM.toList spans)
+
+    slicesOffsetXArray = listArray (0, length slicesOffsetX - 1) slicesOffsetX
+
+    initialHeightMap =
+        IM.fromList $
+            mapMaybe
+                ( \case
+                    (i, NoBox) -> Nothing
+                    (i, BBox ((x1, y1), (x2, _))) ->
+                        Just
+                            ( I
+                                ( (slicesOffsetXArray ! i) + x1
+                                , (slicesOffsetXArray ! i) + x2
+                                )
+                            , y1
+                            )
+                )
+                (zip [0 ..] boxes)
+
+engraveSpan ::
+    Interval Double ->
+    Span ->
+    HeightMapContextT TryRenderContext (LayoutTree RenderObject)
+engraveSpan interval sp = do
+    heightMap <- get
+    let freeHeight = minimum (0 : IM.elems (heightMap `IM.intersecting` interval))
+    engravedSpan <-
+        case sp of
+            Slur -> engraveSlur interval freeHeight
+            Beam -> pure $ LTNode mempty []
+    ((x1, y1), (x2, _)) <- boxBound <$> lift (fill (getBox engravedSpan))
+    put (IM.insert (I (x1, x2)) y1 heightMap)
+
+    pure engravedSpan
+
+engraveSlur ::
+    (MonadReader RenderConfig m) =>
+    Interval Double ->
+    Double ->
+    m (LayoutTree RenderObject)
+engraveSlur (I (a, b)) height = do
+    slurHeight <- asks getSlurHeight
+    slurPaddingX <- asks getSlurPaddingX
+    slurPaddingBottom <- asks getSlurPaddingBottom
+    pure $
+        LTNode
+            (move (a + slurPaddingX) (height - slurPaddingBottom))
+            [LTLeaf APBottomLeft (Curve (b - a - 2 * slurPaddingX) slurHeight)]

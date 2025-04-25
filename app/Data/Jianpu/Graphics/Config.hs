@@ -4,9 +4,11 @@ module Data.Jianpu.Graphics.Config where
 
 import Control.Monad.Reader (Reader, ReaderT, MonadReader (reader), runReader)
 import Data.Jianpu.Types (TimeSignature)
+import Data.Jianpu.Abstract.Error (HasError)
 
 type RenderContext = Reader RenderConfig
 type RenderContextT m = ReaderT RenderConfig m
+type TryRenderContext = RenderContextT HasError
 
 fill :: Monad m => Reader r a -> ReaderT r m a
 fill = reader . runReader
@@ -38,6 +40,9 @@ data RenderConfig = RCfg
     , barLineRightPadding'glyphWidth :: Double
     , thickBarLineWidth'barLineWidth :: Double
     , thickBarLineGap'barLineWidth :: Double
+    , slurHeight'glyphHeight :: Double
+    , slurPaddingX'glyphWidth :: Double
+    , slurPaddingBottom'glyphHeight :: Double
     , -- Logical config
       initialTimeSignature :: TimeSignature
     }
@@ -60,6 +65,9 @@ getBarLineLeftPadding cfg@RCfg{..} = barLineLeftPadding'glyphWidth * getGlyphWid
 getBarLineRightPadding cfg@RCfg{..} = barLineRightPadding'glyphWidth * getGlyphWidth cfg
 getThickBarLineWidth cfg@RCfg{..} = thickBarLineWidth'barLineWidth * getBarLineWidth cfg
 getThickBarLineGap cfg@RCfg{..} = thickBarLineGap'barLineWidth * getBarLineWidth cfg
+getSlurHeight cfg@RCfg{..} = slurHeight'glyphHeight * getGlyphHeight cfg
+getSlurPaddingX cfg@RCfg{..} = slurPaddingX'glyphWidth * getGlyphWidth cfg
+getSlurPaddingBottom cfg@RCfg{..} = slurPaddingBottom'glyphHeight * getGlyphHeight cfg
 
 defaultRenderConfig :: RenderConfig
 defaultRenderConfig =
@@ -85,5 +93,8 @@ defaultRenderConfig =
         , barLineRightPadding'glyphWidth = 1
         , thickBarLineWidth'barLineWidth = 3
         , thickBarLineGap'barLineWidth = 2
+        , slurHeight'glyphHeight = 1 / 2
+        , slurPaddingX'glyphWidth = 1 / 8
+        , slurPaddingBottom'glyphHeight = 1 / 8
         , initialTimeSignature = (4, 4)
         }
