@@ -4,7 +4,8 @@ import Text.Parsec
 
 import Control.Applicative (asum, some)
 import Control.Monad
-import Data.Jianpu.Syntax.Types
+import Data.Jianpu.Abstract.Error (AbstractError (MarkupSyntaxError), HasError)
+import Data.Jianpu.Syntax
 import Data.Jianpu.Types
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.List.NonEmpty qualified as NE
@@ -108,52 +109,56 @@ pPitch = do
     return $ Pitch whiteKey transpose accidental
 
 pWhites :: Parser ()
-pWhites = void $ many pWhite
-  where
-    pWhite :: Parser ()
-    pWhite = void . asum $ map char " \t\n\r"
+pWhites = void $ many (pComment <|> pWhite)
+
+pWhites1 :: Parser ()
+pWhites1 = void $ some pWhite
+
+pWhite :: Parser ()
+pWhite = void $ asum (map char " \t\n\r")
+
+pComment :: Parser ()
+pComment = void $ do
+    void $ try (string "--")
+    void $ many (noneOf "\n\r")
+    void $ some (asum (map char "\n\r"))
 
 pSingleNote :: Parser (NonEmpty Pitch)
 pSingleNote = NE.singleton <$> pPitch
 
-pChord :: Parser (NonEmpty Pitch)
-pChord = do
-    void $ char '['
-    pWhites
-    firstPitch <- pPitch <* pWhites
-    tailPitches <- some $ pPitch <* pWhites
-    void $ char ']'
-    return $ firstPitch :| tailPitches
-
 pPitches :: Parser (NonEmpty Pitch)
-pPitches = pSingleNote <|> pChord
+pPitches = do
+    pitches <- pPitch `sepBy1` char '+'
+    case pitches of
+        [] -> error "This is not possible."
+        p : ps -> return $ p :| ps
 
 pNote :: Parser Sound
 pNote = Note <$> pPitches <*> pure Nothing
 
-pTimedEvent :: Parser Event
-pTimedEvent = do
+pAction :: Parser Event
+pAction = do
     sound <- pNote <|> pRest <|> pClap
     timeMultiplier <- pTimeMultiplier
     dot <- pDot
-    return $ TimedEvent timeMultiplier dot sound
+    return $ Action timeMultiplier dot sound
 
-pEvent :: Parser Entity
-pEvent = Event <$> (pRepeater4 <|> pMultiBarRest <|> pTimedEvent)
+pEvent :: Parser Lexeme
+pEvent = LEvent <$> (pRepeater4 <|> try pMultiBarRest <|> pAction)
 
-pBarLine :: Parser Entity
+pBarLine :: Parser Lexeme
 pBarLine =
     asum
-        [ BeginEndRepeat <$ try (string ":|:")
-        , BeginRepeat <$ try (string ":|")
-        , EndRepeat <$ try (string "|:")
-        , EndSign <$ try (string "|||")
-        , DoubleBarLine <$ try (string "||")
-        , BarLine <$ try (char '|')
+        [ ColonSingleBarColon <$ try (string ":|:")
+        , SingleBarColon <$ try (string ":|")
+        , ColonSingleBar <$ try (string "|:")
+        , TripleBar <$ try (string "|||")
+        , DoubleBar <$ try (string "||")
+        , SingleBar <$ try (char '|')
         ]
 
 pArgument :: Parser Argument
-pArgument = (Int <$> pInt) <|> (String <$> pString)
+pArgument = (AInt <$> pInt) <|> (AStr <$> pString)
 
 pArguments :: Parser [Argument]
 pArguments = (start *> args <* end) <|> return []
@@ -162,23 +167,23 @@ pArguments = (start *> args <* end) <|> return []
     args = pArgument `sepBy` (pWhites *> char ',' <* pWhites)
     end = pWhites <* char '>'
 
-pTag0 :: Parser Entity
+pTag0 :: Parser Lexeme
 pTag0 = char '^' *> (Tag0 <$> pIdentifier <*> pArguments)
 
-pTag1 :: Parser Entity
+pTag1 :: Parser Lexeme
 pTag1 = char '@' *> (Tag1 <$> pIdentifier <*> pArguments)
 
 pTagId :: Parser (Maybe Int)
 pTagId = optionMaybe (char ':' *> pInt)
 
-pTagStart :: Parser Entity
+pTagStart :: Parser Lexeme
 pTagStart = char '\\' *> (TagStart <$> pIdentifier <*> pTagId <*> pArguments) <* pWhites <* char '{'
 
-pTagEnd :: Parser Entity
+pTagEnd :: Parser Lexeme
 pTagEnd = char '}' *> (TagEnd <$> optionMaybe pIdentifier <*> pTagId)
 
-pEntity :: Parser Entity
-pEntity =
+pLexeme :: Parser Lexeme
+pLexeme =
     asum
         [ pEvent
         , pBarLine
@@ -188,11 +193,80 @@ pEntity =
         , pTagEnd
         ]
 
-pVoice :: Parser Voice
-pVoice = Voice <$> (pWhites *> many (pEntity <* pWhites))
+pLexemes :: Parser [Lexeme]
+pLexemes = do
+    void $ string "note"
+    pWhites
+    void $ char '['
+    pWhites
+    entities <- many (try pLexeme <* pWhites)
+    pWhites
+    void $ char ']'
 
-pMusic :: Parser Music
-pMusic = Music <$> (pVoice `sepBy` char ';')
+    pure entities
+
+pMaybeSyllable :: Parser (Maybe Syllable)
+pMaybeSyllable =
+    (Nothing <$ char '_')
+        <|> (Just <$> (Syllable <$> pSyllablePrefix <*> pSyllableContent <*> pSyllableSuffix))
+
+pSyllablePrefix :: Parser (Maybe String)
+pSyllablePrefix =
+    optionMaybe . asum . fmap string $
+        ["‘", "“"]
+
+pSyllableContent :: Parser String
+pSyllableContent = concat <$> ((:) <$> pCore <*> many pTail)
+  where
+    pCore = some (noneOf "<>[]{}\n\r\t ’”,.!?，。！？、")
+    pTail = (:) <$> oneOf "'’" <*> pCore
+
+pSyllableSuffix :: Parser (Maybe String)
+pSyllableSuffix =
+    optionMaybe . asum . fmap string $
+        ["’", "”", ",", ".", "!", "?", "-", "\\;", ":", "，", "。", "！", "？", "、", "；", "："]
+
+pLyrics :: Parser [Maybe Syllable]
+pLyrics = do
+    void $ string "lyrics"
+    pWhites
+    void $ char '['
+    pWhites
+    l <- many (try pMaybeSyllable <* pWhites)
+    pWhites
+    void $ char ']'
+
+    pure l
+
+pVoice :: Parser ([Lexeme], [[Maybe Syllable]])
+pVoice = do
+    void $ string "voice"
+    pWhites
+    void $ char '['
+    pWhites
+    entities <- pLexemes
+    pWhites
+    lyrics <- many (try pLyrics <* pWhites)
+    void $ char ']'
+
+    pure (entities, lyrics)
+
+pMusic :: Parser [([Lexeme], [[Maybe Syllable]])]
+pMusic = many (try pVoice <* pWhites)
+
+pFile :: Parser [([Lexeme], [[Maybe Syllable]])]
+pFile = pWhites *> pMusic <* eof
+
+markupToDraft :: FilePath -> String -> HasError [([Lexeme], [[Maybe Syllable]])]
+markupToDraft inputPath markup =
+    case runParser pFile () inputPath markup of
+        Left err -> Left [MarkupSyntaxError err]
+        Right result -> Right result
 
 run :: Parsec String () a -> String -> Either ParseError a
 run p = runParser p () ""
+
+test :: IO ()
+test = do
+    raw <- readFile "test.yjp"
+    print $ run pFile raw

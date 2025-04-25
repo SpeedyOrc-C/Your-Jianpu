@@ -1,22 +1,77 @@
 {
-	"延长符号": {
-		"prefix": ["@fermata", "fermata", "yanchang", "延长"],
-		"body": "@fermata ",
+	"声部": {
+		"prefix": [
+			"voice",
+			"shengbu",
+			"声部"
+		],
+		"body": [
+			"voice [",
+			"\tnote [",
+			"\t\t$0",
+			"\t]",
+			"]",
+		],
 	},
-	"渐强":{
-		"prefix": ["\\cresc", "cresc", "jianqiang", "渐强"],
+	"歌词": {
+		"prefix": [
+			"lyrics",
+			"geci",
+			"歌词"
+		],
+		"body": [
+			"lyrics [",
+			"\t$0",
+			"]",
+		],
+	},
+	"延长符号": {
+		"prefix": [
+			"@fermata",
+			"fermata",
+			"yanchang",
+			"延长"
+		],
+		"body": "@fermata",
+	},
+	"渐强": {
+		"prefix": [
+			"\\cresc",
+			"cresc",
+			"jianqiang",
+			"渐强"
+		],
 		"body": "\\cresc{ $0 }",
 	},
-	"谱号": {
-		"prefix": ["^signature", "signature", "puhao", "谱号"],
-		"body": "^signature<$1,$2> $0",
+	"拍号": {
+		"prefix": [
+			"^signature",
+			"signature",
+			"paihao",
+			"拍号"
+		],
+		"body": "^signature<$1,$2>",
+	},
+	"连线": {
+		"prefix": [
+			"\\slur",
+			"slur",
+			"lianxian"
+		],
+		"body": "\\slur { $0 }"
 	},
 	"三连音": {
-		"prefix": ["t3", "ly3"],
+		"prefix": [
+			"3t",
+			"3ly"
+		],
 		"body": "\\tuplet<3> { $0 }",
 	},
 	"五连音": {
-		"prefix": ["t5", "ly5"],
+		"prefix": [
+			"3t",
+			"5ly"
+		],
 		"body": "\\tuplet<5> { $0 }"
 	},
 }
